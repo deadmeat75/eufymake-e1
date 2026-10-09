@@ -358,7 +358,7 @@ const norm = x => String(x ?? '').toLowerCase()
         </div>
         ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
           ${missing} of ${readings.length} live readings unavailable or unmatched.
-          Saved expiration dates remain visible.
+          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
         </div>` : ''}
       </div>
     </div>`;
@@ -695,7 +695,7 @@ const norm = x => String(x ?? '').toLowerCase()
         </div>
         ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
           ${missing} of ${readings.length} live readings unavailable or unmatched.
-          Saved expiration dates remain visible.
+          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
         </div>` : ''}
       </div>
     </div>`;
