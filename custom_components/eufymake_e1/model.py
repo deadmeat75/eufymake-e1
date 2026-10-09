@@ -58,12 +58,13 @@ class PrinterState:
             days = None
         suffix = "_expiration" if key == "waste_tank" else "_ink_expiration"
         self._set(key + suffix, days, now)
-        if days is not None and key not in self.manual_dates:
+        if days is not None and (key not in self.manual_dates or days > 0):
+            self.manual_dates.discard(key)
             self.dates[key] = (today + timedelta(days=days)).isoformat()
 
     def apply(self, item, now, today):
-        """Process one decoded message; returns whether saved dates changed."""
-        before = dict(self.dates)
+        """Process one decoded message; returns whether persisted date data changed."""
+        before = self.stored_data()
         command = item.get("commandType")
         if command == 1100:
             ink = item.get("ink")
@@ -85,7 +86,7 @@ class PrinterState:
             if isinstance(status, dict):
                 state, step = status.get("state"), status.get("step")
                 if type(state) is int and type(step) is int:
-                    label = {(0, 0): "Idle", (2, 3): "Paused", (2, 4): "Printing"}.get((state, step), "Unknown")
+                    label = {(0, 0): "Idle", (2, 3): "Paused", (2, 4): "Printing", (5, 7): "Automatic flash clean", (8, 0): "Taking snapshot"}.get((state, step), "Unknown")
                     self._set("printer_status", label, now)
                     self._set("printer_step", step, now)
         elif command == 1001:
@@ -95,7 +96,7 @@ class PrinterState:
         elif command == 1068:
             value = numeric(item.get("totalTime"))
             self._set("print_time", value if value is not None and value >= 0 else None, now)
-        return before != self.dates
+        return before != self.stored_data()
 
     def snapshot(self, now):
         data = {}

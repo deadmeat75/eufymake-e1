@@ -2,7 +2,7 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert');
 const registry = new Map();
-global.HTMLElement = class { attachShadow() { this.shadowRoot = {innerHTML:''}; } };
+global.HTMLElement = class { attachShadow() { this.shadowRoot = {innerHTML:'', addEventListener(type, fn) { this.onclick = fn; }, received:{textContent:''}, querySelector() { return this.received; }}; } };
 global.customElements = {get:key => registry.get(key), define:(key,value) => registry.set(key,value)};
 global.window = {};
 vm.runInThisContext(fs.readFileSync(__dirname + '/../custom_components/eufymake_e1/www/card.js','utf8'));
@@ -39,8 +39,62 @@ for (const layout of ['horizontal','vertical']) {
   assert(card.shadowRoot.innerHTML.includes('0%'));
   entity('print_progress',100,'sensor',true);
 }
+// Unit controls apply only to the six cartridges in either layout.
+for (const layout of ['horizontal','vertical']) {
+  card.setConfig({device_id:prefix,layout,ink_unit:'percent'});
+  card.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+  assert.strictEqual((card.shadowRoot.innerHTML.match(/65\.5%<\/div>/g)||[]).length,6);
+  card.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+  let html = card.shadowRoot.innerHTML;
+  assert.strictEqual((html.match(/65\.5 mL/g)||[]).length,6);
+  assert(html.includes('50.0%'), 'waste tank must remain a percentage');
+  assert(html.includes('100%'), 'print progress must remain a percentage');
+  assert(html.includes('height:65.5%'), 'fill remains proportional');
+  card.setConfig({device_id:prefix,layout,ink_unit:'percent'});
+  card.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+  assert(card.shadowRoot.innerHTML.includes('65.5 mL'), 'live/config updates retain selection');
+  entity('cyan_ink_remaining',0);
+  entity('magenta_ink_remaining',100);
+  entity('yellow_ink_remaining','unavailable');
+  card.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+  html = card.shadowRoot.innerHTML;
+  assert(html.includes('0.0 mL'));
+  assert(html.includes('100.0 mL'));
+  assert.strictEqual((html.match(/ mL</g)||[]).length,5, 'unavailable ink must not become zero mL');
+  card.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'percent'}})}});
+  assert(card.shadowRoot.innerHTML.includes('100.0%'));
+  for (const key of ['cyan','magenta','yellow']) entity(key+'_ink_remaining',65.5);
+}
+const mlCard = new Card();
+mlCard.setConfig({device_id:prefix,ink_unit:'ml'});
+mlCard.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+assert(mlCard.shadowRoot.innerHTML.includes('65.5 mL'));
+assert.throws(() => mlCard.setConfig({device_id:prefix,ink_unit:'liters'}));
 card.hass = {states:{},config:{time_zone:'America/Los_Angeles'}};
 assert(card.shadowRoot.innerHTML.includes('Date not saved'));
 assert(!card.shadowRoot.innerHTML.includes('NaN'));
 assert(registry.has('eufymake-e1-panel'));
+for (const layout of ['horizontal', 'vertical']) {
+  card.setConfig({device_id:prefix, layout});
+  for (const status of ['Printing', 'Automatic flash clean', 'Taking snapshot']) {
+    entity('printer_status', status);
+    states['sensor.' + prefix + '_printer_status'].attributes.last_received = '2026-10-09T23:15:00+00:00';
+    // All live readings available: disclaimer must still be present.
+    for (const color of ['cyan','magenta','yellow','black','white','gloss']) entity(color+'_ink_expiration',100);
+    card.hass = {states, config:{time_zone:'America/Los_Angeles'}};
+    assert(card.shadowRoot.innerHTML.includes(status));
+    assert(card.shadowRoot.innerHTML.includes('Date edits only affect Home Assistant.'));
+    assert(card.shadowRoot.innerHTML.includes('PRINTER MONITOR'));
+    assert(!card.shadowRoot.innerHTML.includes('UV PRINT STUDIO'));
+    assert(!card.shadowRoot.innerHTML.includes('Waiting for status'));
+    assert(card.shadowRoot.received.textContent.includes('Last live data received:'));
+    assert(card.shadowRoot.received.textContent.includes('4:15:00 PM'));
+  }
+  states['sensor.' + prefix + '_printer_status'].state = 'unavailable';
+  card.hass = {states, config:{time_zone:'America/Los_Angeles'}};
+  assert(card.shadowRoot.received.textContent.includes('4:15:00 PM'));
+  states['sensor.' + prefix + '_printer_status'].attributes.last_received = 'invalid';
+  card.hass = {states, config:{time_zone:'America/Los_Angeles'}};
+  assert(card.shadowRoot.received.textContent.includes('No live data received'));
+}
 console.log('Both card layouts verified: 0%, 100%, offline, saved dates, renamed entities, and balanced markup.');

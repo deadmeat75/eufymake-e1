@@ -1,6 +1,6 @@
-# EufyMake E1 Studio — Home Assistant integration
+# EufyMake E1 Monitor — Home Assistant integration
 
-**Development preview 0.2.3.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
+**Development preview 0.2.4.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -10,7 +10,7 @@ Tested and working on the maintainer's Home Assistant installation. This is an u
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
 - 19 native sensors: six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, and remaining time.
 - Seven editable expiration-date entities, stored in Home Assistant and available while the printer is offline.
-- Manual date overrides preserved across restarts and subsequent printer countdown updates.
+- Manual dates preserved across restarts and unavailable countdowns; renewed positive countdowns restore automatic dates.
 - Automatic sidebar dashboard with horizontal and vertical layouts.
 - Bundled card for existing Lovelace dashboards.
 - Separate identities for each printer.
@@ -30,7 +30,7 @@ Editing a saved date updates the Home Assistant date entity and dashboard displa
 
 If the printer refuses to print because a cartridge has expired, changing its date in this integration will not unlock printing.
 
-Manual dates remain until you edit them again. For a replacement cartridge, update its saved date manually. Dates saved by version 0.2.0 are preserved as overrides on upgrade.
+Manual dates remain saved while countdowns are unavailable, zero, or negative. A valid positive countdown automatically recalculates the date and clears its manual override, including when a new cartridge supplies that data. Dates saved by version 0.2.0 are preserved until positive countdown data arrives.
 
 ## Why manual expiration dates are available
 
@@ -40,7 +40,7 @@ On the maintainer's printer, expired ink may report its countdown as unavailable
 
 Manual entry is not needed simply because a previously saved date has passed. The integration also accepts valid zero and negative countdowns when supplied by the printer.
 
-A manually entered date remains an override until you edit it again. Update it yourself after replacing a cartridge. These edits only affect Home Assistant and do not change cartridge or printer data or bypass printing lockouts.
+A manually entered date is a fallback while countdowns are unavailable, zero, or negative. When the printer supplies a valid positive countdown, the integration recalculates the date and clears the manual override automatically. This uses renewed positive data as its trigger; it does not independently detect cartridge replacement. These edits only affect Home Assistant and do not change cartridge or printer data or bypass printing lockouts.
 
 ## Requirements
 
@@ -58,7 +58,7 @@ This integration requires credentials and cloud access. It is not a local-only o
 2. Open its menu and select **Custom repositories**.
 3. Enter `https://github.com/deadmeat75/eufymake-e1`.
 4. Choose category **Integration** and add the repository.
-5. Find and download **EufyMake E1 Studio**.
+5. Find and download **EufyMake E1 Monitor**.
 6. Restart Home Assistant.
 7. Follow **Find your Studio files on Windows** and **Connect the integration** below.
 
@@ -173,7 +173,7 @@ Complete these steps in a browser on the Windows computer containing your Studio
 1. Open your Home Assistant instance.
 2. Go to **Settings → Devices & services**.
 3. Select **Add integration**.
-4. Search for **EufyMake E1 Studio** and select it.
+4. Search for **EufyMake E1 Monitor** and select it.
 5. Use each file selector to choose the corresponding file:
 
    | Home Assistant field | File |
@@ -247,6 +247,14 @@ The retained credentials are used to authenticate to Eufy's cloud service. They 
 
 Never upload your credential files to GitHub, attach them to issue reports, or share screenshots showing their contents.
 
+## Ink display units and live-data timestamp
+
+Use the **% / mL** buttons to choose the display unit for the six ink cartridges. Each has a 100 mL capacity, so 65% corresponds to an estimated 65 mL. This is calculated from the printer's percentage, not a separate volume measurement. Ink fill bars and low-ink warnings are unchanged. Waste-tank capacity and print progress remain percentages; unavailable ink remains unavailable.
+
+The choice stays active while the card is open, including live updates and sidebar layout changes. Reloading the page restores the default of percent. For a Lovelace card, add `ink_unit: ml` to select mL by default, or `ink_unit: percent` for percent.
+
+The dashboard shows when live printer data was last received, including while disconnected. This timestamp refers to the latest received message, not the freshness of every individual sensor. It resets when the integration restarts; saved expiration dates persist independently.
+
 ## Existing Lovelace dashboards
 
 The integration registers its card automatically. To add it to an existing dashboard:
@@ -266,7 +274,7 @@ The card uses entity metadata, so renamed entity IDs continue to work. Narrow sc
 ## Validation and limitations
 
 - Installation and operation confirmed on the maintainer's Home Assistant instance.
-- All 33 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
+- All 39 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
 - JavaScript rendering checks passed for both dashboard layouts, including renamed entities and unavailable readings.
 - hassfest and HACS repository validation remain pending.
 - Development tests do not establish compatibility with every Home Assistant installation or printer region.
@@ -278,6 +286,8 @@ Known printer status mappings are:
 - `0/0`: Idle.
 - `2/3`: Paused.
 - `2/4`: Printing.
+- `5/7`: Automatic flash clean (observed on the maintainer's printer).
+- `8/0`: Taking snapshot (observed on the maintainer's printer).
 
 Other combinations display **Unknown**.
 

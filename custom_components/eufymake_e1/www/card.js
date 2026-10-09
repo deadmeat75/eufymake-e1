@@ -1,8 +1,22 @@
-// EufyMake E1 Studio. Dashboard artwork derived from the user's approved card.
+// EufyMake E1 Monitor. Dashboard artwork derived from the user's approved card.
 class EufyMakeE1Card extends HTMLElement {
-  constructor() { super(); this.attachShadow({mode:'open'}); }
+  constructor() {
+    super(); this.attachShadow({mode:'open'});
+    this.shadowRoot.addEventListener('click', event => {
+      const button = event.target.closest?.('button[data-ink-unit]');
+      if (!button) return;
+      this._inkUnit = button.dataset.inkUnit;
+      this.render();
+    });
+  }
   setConfig(config) {
     if (!/^eufymake_e1_[a-z0-9]+$/.test(config.device_id || '')) throw new Error('Set a valid printer device_id');
+    if (config.ink_unit !== undefined && !['percent', 'ml'].includes(config.ink_unit)) {
+      throw new Error('ink_unit must be percent or ml');
+    }
+    if (this._config?.device_id !== config.device_id || this._config?.ink_unit !== config.ink_unit) {
+      this._inkUnit = config.ink_unit || 'percent';
+    }
     this._config = {layout:'horizontal', ...config};
     this.render();
   }
@@ -26,11 +40,28 @@ class EufyMakeE1Card extends HTMLElement {
   render() {
     if (!this._hass || !this._config) return;
     const panel = this._config.layout === 'vertical' ? this.vertical() : this.horizontal();
+    const received = this.stateFor('printer_status')?.attributes?.last_received;
+    const receivedDate = received ? new Date(received) : null;
+    const receivedText = receivedDate && Number.isFinite(receivedDate.getTime())
+      ? receivedDate.toLocaleString(this._hass.locale?.language || 'en-US', {
+          timeZone: this._hass.config?.time_zone || 'UTC',
+          year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', second:'2-digit'
+        }) : 'No live data received since integration startup';
     this.shadowRoot.innerHTML = `<ha-card><style>
       :host{display:block;min-width:0}ha-card{display:block;box-sizing:border-box;padding:20px;
       border-radius:24px;background:linear-gradient(145deg,#18283b,#0b1220);
       border:1px solid #334155;box-shadow:0 12px 30px #00000035;color:#f1f5f9}
-    </style>${panel}</ha-card>`;
+      .ink-units{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:#cbd5e1}
+      .ink-units button{border:1px solid #64748b;background:#0f172a;color:#cbd5e1;border-radius:8px;padding:6px 10px;cursor:pointer}
+      .ink-units button[aria-pressed="true"]{background:#164e63;color:#fff;border-color:#22d3ee}
+      .ink-units button:focus-visible{outline:2px solid #22d3ee;outline-offset:2px}
+    </style><div class="ink-units" role="group" aria-label="Ink display units">
+      <span>Estimated ink:</span>
+      <button type="button" data-ink-unit="percent" aria-pressed="${this._inkUnit !== 'ml'}">%</button>
+      <button type="button" data-ink-unit="ml" aria-pressed="${this._inkUnit === 'ml'}">mL</button>
+    </div>${panel}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
+    this.shadowRoot.querySelector('.last-received').textContent = receivedDate && Number.isFinite(receivedDate.getTime())
+      ? 'Last live data received: ' + receivedText : receivedText;
   }
   vertical() {
     const hass = this._hass;
@@ -146,7 +177,9 @@ const norm = x => String(x ?? '').toLowerCase()
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
-    : mode === 'idle' ? 'Standing by' : 'Waiting for status';
+    : mode === 'idle' ? 'Standing by'
+    : mode === 'automatic flash clean' ? 'Automatic flash clean'
+    : mode === 'taking snapshot' ? 'Taking snapshot' : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor, progressSensor,
@@ -195,7 +228,7 @@ const norm = x => String(x ?? '').toLowerCase()
             #0f172a40 19px,#0f172a40 20px);"></div>
         </div>
         <div style="font-size:19px;font-weight:750;
-          color:${low ? '#fb7185' : '#f1f5f9'};">${pct(level)}</div>
+          color:${low ? '#fb7185' : '#f1f5f9'};">${level === null ? '—' : cap(level).toFixed(1) + (this._inkUnit === 'ml' ? ' mL' : '%')}</div>
         <div style="display:flex;justify-content:center;
           align-items:center;gap:3px 6px;flex-wrap:wrap;
           margin-top:5px;font-size:10px;
@@ -248,7 +281,7 @@ const norm = x => String(x ?? '').toLowerCase()
         align-items:center;gap:10px;flex-wrap:wrap;">
         <div>
           <div style="font-size:10px;font-weight:700;
-            letter-spacing:2px;color:#94a3b8;">UV PRINT STUDIO</div>
+            letter-spacing:2px;color:#94a3b8;">PRINTER MONITOR</div>
           <div style="font-size:28px;font-weight:800;
             letter-spacing:-1px;margin-top:3px;">
             eufy<span style="color:#22d3ee;">Make</span> E1
@@ -358,8 +391,10 @@ const norm = x => String(x ?? '').toLowerCase()
         </div>
         ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
           ${missing} of ${readings.length} live readings unavailable or unmatched.
-          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
         </div>` : ''}
+        <div style="margin-top:6px;color:#94a3b8;">
+          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
+        </div>
       </div>
     </div>`;
   }
@@ -477,7 +512,9 @@ const norm = x => String(x ?? '').toLowerCase()
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
-    : mode === 'idle' ? 'Standing by' : 'Waiting for status';
+    : mode === 'idle' ? 'Standing by'
+    : mode === 'automatic flash clean' ? 'Automatic flash clean'
+    : mode === 'taking snapshot' ? 'Taking snapshot' : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor, progressSensor,
@@ -526,7 +563,7 @@ const norm = x => String(x ?? '').toLowerCase()
             #0f172a40 19px,#0f172a40 20px);"></div>
         </div>
         <div style="font-size:19px;font-weight:750;
-          color:${low ? '#fb7185' : '#f1f5f9'};">${pct(level)}</div>
+          color:${low ? '#fb7185' : '#f1f5f9'};">${level === null ? '—' : cap(level).toFixed(1) + (this._inkUnit === 'ml' ? ' mL' : '%')}</div>
         <div style="display:flex;justify-content:center;
           align-items:center;gap:3px 6px;flex-wrap:wrap;
           margin-top:5px;font-size:10px;
@@ -579,7 +616,7 @@ const norm = x => String(x ?? '').toLowerCase()
         align-items:center;gap:10px;flex-wrap:wrap;">
         <div>
           <div style="font-size:10px;font-weight:700;
-            letter-spacing:2px;color:#94a3b8;">UV PRINT STUDIO</div>
+            letter-spacing:2px;color:#94a3b8;">PRINTER MONITOR</div>
           <div style="font-size:28px;font-weight:800;
             letter-spacing:-1px;margin-top:3px;">
             eufy<span style="color:#22d3ee;">Make</span> E1
@@ -695,15 +732,17 @@ const norm = x => String(x ?? '').toLowerCase()
         </div>
         ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
           ${missing} of ${readings.length} live readings unavailable or unmatched.
-          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
         </div>` : ''}
+        <div style="margin-top:6px;color:#94a3b8;">
+          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
+        </div>
       </div>
     </div>`;
   }
 }
 if (!customElements.get('eufymake-e1-card')) customElements.define('eufymake-e1-card', EufyMakeE1Card);
 window.customCards = window.customCards || [];
-window.customCards.push({type:'eufymake-e1-card', name:'EufyMake E1 Studio', description:'Printer status, ink reserves, and persistent dates.'});
+window.customCards.push({type:'eufymake-e1-card', name:'EufyMake E1 Monitor', description:'Printer status, ink reserves, and persistent dates.'});
 
 // Automatically registered sidebar panel; the same card can be used in Lovelace.
 class EufyMakeE1Panel extends HTMLElement {
@@ -720,7 +759,7 @@ class EufyMakeE1Panel extends HTMLElement {
       h1{font-size:20px;margin:0;flex:1}.layout{background:var(--card-background-color);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:8px;padding:8px;cursor:pointer}
       main{max-width:1440px;margin:auto;padding:24px;box-sizing:border-box}footer{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}footer button{background:var(--card-background-color);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:8px;padding:8px;cursor:pointer}small{display:block;color:var(--secondary-text-color);margin-bottom:8px}
       @media(max-width:600px){main{padding:12px}header{padding:8px}}
-      </style><header><ha-menu-button></ha-menu-button><h1>EufyMake E1</h1><button class="layout">Vertical layout</button></header><main><eufymake-e1-card></eufymake-e1-card><footer></footer><small>Choose a consumable below the dashboard to edit its saved expiration date.</small></main>`;
+      </style><header><ha-menu-button></ha-menu-button><h1>EufyMake E1 Monitor</h1><button class="layout">Vertical layout</button></header><main><eufymake-e1-card></eufymake-e1-card><footer></footer><small>Choose a consumable below the dashboard to edit its saved expiration date.</small></main>`;
       this._card=this.shadowRoot.querySelector('eufymake-e1-card');
       this.shadowRoot.querySelector('.layout').addEventListener('click', () => {
         this._layout=this._layout === 'horizontal' ? 'vertical' : 'horizontal';

@@ -1,4 +1,4 @@
-"""EufyMake E1 Studio custom integration."""
+"""EufyMake E1 Monitor custom integration."""
 from pathlib import Path
 from homeassistant.components import frontend, panel_custom
 from homeassistant.components.http import StaticPathConfig
@@ -35,7 +35,7 @@ async def async_setup_entry(hass, entry):
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         await panel_custom.async_register_panel(
             hass, frontend_url_path=coordinator.panel_path,
-            webcomponent_name="eufymake-e1-panel", sidebar_title=entry.title,
+            webcomponent_name="eufymake-e1-panel", sidebar_title="EufyMake E1 Monitor · " + entry.data["serial"][-6:],
             sidebar_icon="mdi:printer-3d", module_url=CARD_URL, embed_iframe=False,
             config={"device_id": coordinator.device_id},
         )
