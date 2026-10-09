@@ -23,4 +23,5 @@ class EufyMakeEntity(CoordinatorEntity):
     @property
     def extra_state_attributes(self):
         # Let the bundled card bind correctly even after entity IDs are renamed.
-        return {"eufymake_device_id": self.coordinator.device_id, "eufymake_key": self.key}
+        return {"eufymake_device_id": self.coordinator.device_id, "eufymake_key": self.key,
+                "last_received": self.coordinator.last_received}

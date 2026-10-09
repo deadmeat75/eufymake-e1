@@ -1,3 +1,13 @@
+# 0.2.4
+
+- Rename the integration and dashboard to EufyMake E1 Monitor, preserving the domain and entity IDs.
+- Add a percent/mL ink display toggle for all six 100 mL cartridges; waste and print progress remain percentages.
+- Let valid positive expiration countdowns replace manual dates and clear their overrides; preserve manual dates for unavailable, zero, or negative countdowns.
+- Show the timestamp of the latest live printer message, including while offline.
+- Keep the Home Assistant-only expiration disclaimer visible in both layouts.
+- Add observed state/step mappings for automatic flash clean (5/7) and taking snapshot (8/0).
+- Bump the dashboard asset URL to refresh cached JavaScript.
+
 # 0.2.3
 
 - Add the EufyMake integration icon.

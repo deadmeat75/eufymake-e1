@@ -38,10 +38,11 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(len(self.model.dates), 7)
         self.assertTrue(all(value == '2030-09-15' for value in self.model.dates.values()))
 
-    def test_new_countdown_preserves_manual_date(self):
+    def test_positive_countdown_replaces_manual_date(self):
         self.model.set_date('yellow','2030-09-15')
         self.model.apply({'commandType':1100, 'ink':{'distanceExpiration':[None,None,10]}}, 100, TODAY)
-        self.assertEqual(self.model.dates['yellow'],'2030-09-15')
+        self.assertEqual(self.model.dates['yellow'],'2030-10-18')
+        self.assertNotIn('yellow', self.model.manual_dates)
 
     def test_manual_dates_survive_serialization_and_zero_after_restart(self):
         self.model.set_date("yellow", "2030-09-15")
@@ -52,6 +53,34 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(restarted.dates["yellow"], "2030-09-15")
         self.assertEqual(restarted.dates["gloss"], "2030-09-11")
         self.assertEqual(restarted.dates["cyan"], TODAY.isoformat())
+
+    def test_manual_dates_survive_nonpositive_and_missing_countdowns(self):
+        for countdown in (None, 0, -10):
+            with self.subTest(countdown=countdown):
+                self.model.set_date('cyan', '2030-09-15')
+                self.model.apply({'commandType':1100, 'ink':{'distanceExpiration':[countdown]}}, 100, TODAY)
+                self.assertEqual(self.model.dates['cyan'], '2030-09-15')
+                self.assertIn('cyan', self.model.manual_dates)
+
+    def test_clearing_override_is_persisted_even_when_date_is_unchanged(self):
+        self.model.set_date('cyan', '2030-10-18')
+        changed = self.model.apply({'commandType':1100, 'ink':{'distanceExpiration':[10]}}, 100, TODAY)
+        self.assertTrue(changed)
+        restored = PrinterState(self.model.stored_data()['dates'], manual_dates=self.model.stored_data()['manual_dates'])
+        restored.apply({'commandType':1100, 'ink':{'distanceExpiration':[9]}}, 200, TODAY)
+        self.assertEqual(restored.dates['cyan'], '2030-10-17')
+
+    def test_automatic_date_survives_expiry_unavailable_and_restart(self):
+        self.model.apply({'commandType':1100, 'ink':{'distanceExpiration':[10]}}, 100, TODAY)
+        self.model.apply({'commandType':1100, 'ink':{'distanceExpiration':[None]}}, 200, TODAY + dt.timedelta(days=20))
+        stored = self.model.stored_data()
+        restored = PrinterState(stored['dates'], manual_dates=stored['manual_dates'])
+        self.assertEqual(restored.dates['cyan'], '2030-10-18')
+
+    def test_observed_maintenance_and_snapshot_states(self):
+        for state, step, expected in [(5,7,'Automatic flash clean'), (8,0,'Taking snapshot'), (0,0,'Idle'), (2,4,'Printing'), (2,6,'Unknown')]:
+            self.model.apply({'commandType':1000,'status':{'state':state,'step':step}}, 100, TODAY)
+            self.assertEqual(self.model.snapshot(101)['printer_status'], expected)
 
     def test_missing_channels_do_not_keep_stale_levels(self):
         self.model.apply({'commandType':1100,'ink':{'leftInk':[6500]*6}}, 100, TODAY)

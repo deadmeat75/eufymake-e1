@@ -115,6 +115,31 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.coordinator.model.dates["yellow"], "2030-09-15")
         self.assertEqual(self.coordinator.model.dates["gloss"], "2030-09-11")
 
+    async def test_positive_countdown_clears_manual_override_across_restart(self):
+        await self.coordinator.async_set_date('yellow', dt.date(2030,9,15))
+        self.coordinator._async_receive('message', {'commandType':1100, 'ink':{'distanceExpiration':[None,None,20]}})
+        expected = (coordinator.dt_util.now().date() + dt.timedelta(days=20)).isoformat()
+        self.assertEqual(self.coordinator.model.dates['yellow'], expected)
+        self.assertNotIn('yellow', self.coordinator.model.manual_dates)
+        await self.coordinator.async_close()
+        self.coordinator = coordinator.EufyMakeCoordinator(self.hass, self.entry)
+        await self.coordinator.async_start()
+        await asyncio.sleep(0)
+        self.assertEqual(self.coordinator.model.dates['yellow'], expected)
+        self.assertNotIn('yellow', self.coordinator.model.manual_dates)
+
+    async def test_last_received_changes_only_on_message_and_survives_disconnect(self):
+        entity = sensor.EufyMakeSensor(self.coordinator, 'printer_status')
+        self.assertIsNone(entity.extra_state_attributes['last_received'])
+        self.coordinator._async_receive('message', {'commandType':1000,'status':{'state':5,'step':7}})
+        received = entity.extra_state_attributes['last_received']
+        self.assertEqual(received, coordinator.dt_util.now().isoformat())
+        self.coordinator._async_receive('disconnected', None)
+        self.assertFalse(entity.available)
+        self.assertEqual(entity.extra_state_attributes['last_received'], received)
+        self.coordinator._async_receive('message', {'commandType':1000,'status':{'state':0,'step':0}})
+        self.assertEqual(entity.extra_state_attributes['last_received'], received)
+
     async def test_auth_failure_starts_one_reauth_flow(self):
         self.coordinator._async_receive('auth_failed',None)
         self.coordinator._async_receive('auth_failed',None)
