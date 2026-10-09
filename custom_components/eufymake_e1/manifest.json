@@ -17,6 +17,6 @@
   "requirements": [
     "paho-mqtt==2.1.0"
   ],
-  "version": "0.2.1",
+  "version": "0.2.2",
   "issue_tracker": "https://github.com/deadmeat75/eufymake-e1/issues"
 }
