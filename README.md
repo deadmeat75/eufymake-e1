@@ -31,7 +31,7 @@ This is a source preview, not yet a published HACS repository. Do not install th
 3. Add **EufyMake E1 Studio** from Devices & services. Select the three Studio files. If multiple devices are registered, select the E1.
 4. After setup, open its EufyMake sidebar dashboard. Refresh the browser once if the new card is not yet loaded.
 5. Enter any missing saved dates through the date buttons beneath the dashboard or through the native date entities on the device page.
-
+**Expiration date edits only affect Home Assistant.** Changing a saved date updates the Home Assistant date entity and dashboard display only. It does not change the expiration date stored on the ink cartridge or printer, update Eufy's cloud data, or bypass expiration-related printing lockouts.
 Use a test installation or retain the existing working configuration while checking this preview. New entity IDs use `sensor.eufymake_e1_<serial>_*` and `date.eufymake_e1_<serial>_*`. No existing dates are migrated automatically. Tests use invented sample data.
 
 ## HACS publication
