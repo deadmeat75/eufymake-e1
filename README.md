@@ -1,6 +1,6 @@
 # EufyMake E1 Studio — Home Assistant integration
 
-**Development preview 0.2.2.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
+**Development preview 0.2.3.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -31,6 +31,16 @@ Editing a saved date updates the Home Assistant date entity and dashboard displa
 If the printer refuses to print because a cartridge has expired, changing its date in this integration will not unlock printing.
 
 Manual dates remain until you edit them again. For a replacement cartridge, update its saved date manually. Dates saved by version 0.2.0 are preserved as overrides on upgrade.
+
+## Why manual expiration dates are available
+
+When the printer reports a valid days-until-expiration countdown, the integration calculates and saves the expiration date in Home Assistant. That saved date remains visible after expiration, even if the countdown becomes unavailable, and survives Home Assistant restarts.
+
+On the maintainer's printer, expired ink may report its countdown as unavailable. If the integration never received a valid countdown for that cartridge and has no saved date, it cannot determine the original expiration date. Enter the known date manually using the dashboard date button or the native date entity.
+
+Manual entry is not needed simply because a previously saved date has passed. The integration also accepts valid zero and negative countdowns when supplied by the printer.
+
+A manually entered date remains an override until you edit it again. Update it yourself after replacing a cartridge. These edits only affect Home Assistant and do not change cartridge or printer data or bypass printing lockouts.
 
 ## Requirements
 
