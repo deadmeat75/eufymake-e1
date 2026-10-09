@@ -24,11 +24,12 @@ def device_id(serial):
 
 
 class PrinterState:
-    def __init__(self, dates=None, max_age=MAX_AGE):
+    def __init__(self, dates=None, max_age=MAX_AGE, manual_dates=None):
         self.readings = {}
         self.connected = False
         self.max_age = max_age
         self.dates = {}
+        self.manual_dates = set(manual_dates or ()) & set(CONSUMABLES)
         for key, value in (dates or {}).items():
             if key in CONSUMABLES:
                 try:
@@ -43,6 +44,10 @@ class PrinterState:
         if parsed.isoformat() != value:
             raise ValueError("Use YYYY-MM-DD")
         self.dates[key] = value
+        self.manual_dates.add(key)
+
+    def stored_data(self):
+        return {"dates": dict(self.dates), "manual_dates": sorted(self.manual_dates)}
 
     def _set(self, key, value, now):
         self.readings[key] = (value, now)
@@ -53,7 +58,7 @@ class PrinterState:
             days = None
         suffix = "_expiration" if key == "waste_tank" else "_ink_expiration"
         self._set(key + suffix, days, now)
-        if days is not None:
+        if days is not None and key not in self.manual_dates:
             self.dates[key] = (today + timedelta(days=days)).isoformat()
 
     def apply(self, item, now, today):

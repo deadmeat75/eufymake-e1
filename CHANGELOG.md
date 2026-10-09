@@ -1,3 +1,9 @@
+# 0.2.1
+
+- Persist manual expiration-date overrides across restarts; live countdowns cannot replace them.
+- Preserve dates from 0.2.0 as overrides on upgrade. Dates already overwritten must be entered again.
+- Add model and coordinator restart regression tests.
+
 # Changelog
 
 ## 0.2.0 — native integration preview

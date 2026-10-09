@@ -98,11 +98,22 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_dates_saved_immediately_and_available_offline(self):
         entity=date.EufyMakeDate(self.coordinator,'yellow')
-        await entity.async_set_value(dt.date(2026,9,15))
+        await entity.async_set_value(dt.date(2030,9,15))
         self.coordinator._async_receive('disconnected',None)
         self.assertTrue(entity.available)
-        self.assertEqual(entity.native_value,dt.date(2026,9,15))
-        self.assertEqual(ha_stubs.Store.saved['eufymake_e1.test-entry.dates']['yellow'],'2026-09-15')
+        self.assertEqual(entity.native_value,dt.date(2030,9,15))
+        self.assertEqual(ha_stubs.Store.saved['eufymake_e1.test-entry.dates']['dates']['yellow'],'2030-09-15')
+
+    async def test_manual_dates_survive_coordinator_restart_and_zero_message(self):
+        await self.coordinator.async_set_date("yellow", dt.date(2030,9,15))
+        await self.coordinator.async_set_date("gloss", dt.date(2030,9,11))
+        await self.coordinator.async_close()
+        self.coordinator=coordinator.EufyMakeCoordinator(self.hass,self.entry)
+        await self.coordinator.async_start()
+        await asyncio.sleep(0)
+        self.coordinator._async_receive("message", {"commandType":1100,"ink":{"distanceExpiration":[0]*6}})
+        self.assertEqual(self.coordinator.model.dates["yellow"], "2030-09-15")
+        self.assertEqual(self.coordinator.model.dates["gloss"], "2030-09-11")
 
     async def test_auth_failure_starts_one_reauth_flow(self):
         self.coordinator._async_receive('auth_failed',None)

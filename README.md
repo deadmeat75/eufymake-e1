@@ -1,6 +1,6 @@
 # EufyMake E1 Studio — Home Assistant integration
 
-**Development preview 0.2.0.** A native custom integration intended for distribution through HACS. Connect an EufyMake E1, view print progress and ink reserves, and keep expiration dates visible while the printer is offline.
+**Development preview 0.2.1.** A native custom integration intended for distribution through HACS. Connect an EufyMake E1, view print progress and ink reserves, and keep expiration dates visible while the printer is offline.
 
 This replaces the app/add-on prototype. No local MQTT broker, shell bridge, Prometheus server, virtual environment, startup script, hand-created helpers, HACS dashboard dependency, or terminal discovery commands are needed by the integration.
 
@@ -9,7 +9,7 @@ This replaces the app/add-on prototype. No local MQTT broker, shell bridge, Prom
 - Guided setup under **Settings → Devices & services → Add integration → EufyMake E1 Studio**.
 - Direct verified-TLS connection to Eufy's cloud MQTT service, based on the supplied working printer protocol.
 - 19 native sensors: six ink levels, six ink countdowns, waste capacity and countdown, printer status/step, progress, elapsed time and remaining time.
-- Seven editable native date entities, persisted in Home Assistant storage. Valid fresh countdowns update the dates; unavailable countdowns preserve them. Manual dates remain until a fresh valid countdown arrives.
+- Seven editable native date entities, persisted in Home Assistant storage. Valid fresh countdowns update the dates; unavailable countdowns preserve them. Manually entered dates remain until you edit them again, including after restart and when the printer reports zero days. For a replacement cartridge, edit its date manually. Dates saved by 0.2.0 are preserved as overrides on upgrade.
 - Automatic EufyMake sidebar dashboard with horizontal and vertical layouts, all original graphical elements, and buttons to edit saved dates.
 - The same bundled graphical card can be added to an existing Lovelace dashboard.
 - Separate identities for each printer; no changes to the original `sensor.eufymake_e1_*` sensors or `input_datetime.eufymake_*` helpers.
@@ -32,7 +32,7 @@ This is a source preview, not yet a published HACS repository. Do not install th
 4. After setup, open its EufyMake sidebar dashboard. Refresh the browser once if the new card is not yet loaded.
 5. Enter any missing saved dates through the date buttons beneath the dashboard or through the native date entities on the device page.
 
-Use a test installation or retain the existing working configuration while checking this preview. New entity IDs use `sensor.eufymake_e1_<serial>_*` and `date.eufymake_e1_<serial>_*`. No existing dates are migrated automatically; the original user's Yellow/Gloss dates are not prefilled for other owners.
+Use a test installation or retain the existing working configuration while checking this preview. New entity IDs use `sensor.eufymake_e1_<serial>_*` and `date.eufymake_e1_<serial>_*`. No existing dates are migrated automatically. Tests use invented sample data.
 
 ## HACS publication
 
@@ -56,7 +56,7 @@ Use the exact `eufymake_device_id` attribute from any native sensor. The card al
 
 ## Validation and limitations
 
-31 Python tests pass, covering state decoding, dates, credentials, encrypted frames, and setup/coordinator boundary behavior using small Home Assistant API doubles. Both dashboard layouts pass JavaScript rendering checks, including renamed entities and unavailable readings. A local browser preview at 1280×720 was inspected with fixture data and placeholder icons. These checks do not replace a real Home Assistant Core and printer test.
+33 Python tests pass, covering state decoding, dates, credentials, encrypted frames, and setup/coordinator boundary behavior using small Home Assistant API doubles. Both dashboard layouts pass JavaScript rendering checks, including renamed entities and unavailable readings. A local browser preview at 1280×720 was inspected with fixture data and placeholder icons. These checks do not replace a real Home Assistant Core and printer test.
 
 Not yet verified: Home Assistant platform loading, actual file-selector UI, real cloud authentication/reconnect, native entity/date services, sidebar rendering in Home Assistant, and real HACS installation. hassfest/HACS validators have not been run. The local test host uses Python 3.12 and does not provide the Python 3.14.2+ Linux runtime required by Core 2026.10.0. See `VALIDATION.md` for the hardware checklist.
 

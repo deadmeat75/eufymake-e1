@@ -30,7 +30,12 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
 
     async def async_start(self):
         stored = await self.store.async_load()
-        self.model = PrinterState(stored if isinstance(stored, dict) else {})
+        stored = stored if isinstance(stored, dict) else {}
+        if isinstance(stored.get("dates"), dict):
+            self.model = PrinterState(stored["dates"], manual_dates=stored.get("manual_dates", []))
+        else:
+            # Preserve pre-fix dates; the old format did not record manual edits.
+            self.model = PrinterState(stored, manual_dates=stored.keys())
         self._dates_loaded = True
         await self.hass.async_add_executor_job(self.client.start)
         self._remove_query = async_track_time_interval(self.hass, self._async_query, timedelta(seconds=INTERVAL))
@@ -55,7 +60,7 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
                 self.entry.async_start_reauth(self.hass)
         elif kind == "message" and self.model.connected:
             if self.model.apply(payload, time.monotonic(), dt_util.now().date()):
-                self.store.async_delay_save(lambda: dict(self.model.dates), 1)
+                self.store.async_delay_save(self.model.stored_data, 1)
         self.async_set_updated_data(self.model.snapshot(time.monotonic()))
 
     async def _async_query(self, now):
@@ -67,7 +72,7 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
 
     async def async_set_date(self, key, value):
         self.model.set_date(key, value.isoformat())
-        await self.store.async_save(dict(self.model.dates))
+        await self.store.async_save(self.model.stored_data())
         self.async_set_updated_data(self.model.snapshot(time.monotonic()))
 
     async def async_close(self):
@@ -79,6 +84,6 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         await self.async_shutdown()
         try:
             if self._dates_loaded:
-                await self.store.async_save(dict(self.model.dates))
+                await self.store.async_save(self.model.stored_data())
         finally:
             await self.hass.async_add_executor_job(self.client.stop)
