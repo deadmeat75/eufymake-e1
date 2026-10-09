@@ -1,3 +1,10 @@
+# 0.2.3
+
+- Add the EufyMake integration icon.
+- Explain why manual expiration dates may be needed when printer countdowns are unavailable.
+- Clarify that automatically calculated dates remain saved after expiration and Home Assistant restarts.
+- Clarify that manual dates remain overrides until edited again.
+
 # 0.2.2
 
 - Clarify that expiration date edits only affect Home Assistant; they do not change cartridge or printer dates or bypass printing lockouts.
