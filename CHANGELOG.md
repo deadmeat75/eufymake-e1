@@ -1,3 +1,10 @@
+# 0.2.2
+
+- Clarify that expiration date edits only affect Home Assistant; they do not change cartridge or printer dates or bypass printing lockouts.
+- Replace the saved-date visibility message with an expiration-edit disclaimer in both dashboard layouts.
+- Add detailed Windows Studio file locations and upload instructions.
+- Update installation, credential privacy, and validation documentation.
+
 # 0.2.1
 
 - Persist manual expiration-date overrides across restarts; live countdowns cannot replace them.
