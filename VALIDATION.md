@@ -11,7 +11,7 @@ The boundary tests use small API doubles, not Home Assistant Core. No credential
 
 ## Required before release
 
-1. Create the prepared aperluss/eufymake-e1 repository (owner and manifest URLs are set). Run hassfest and HACS repository validation.
+1. Create the prepared deadmeat75/eufymake-e1 repository (owner and manifest URLs are set). Run hassfest and HACS repository validation.
 2. Load on Home Assistant Core 2026.10.0+ on a supported Linux runtime. Confirm all integration dependencies load and all 26 entities are created.
 3. Exercise Studio file selection, multiple-printer selection, certificate validation, invalid credentials and duplicate setup.
 4. Verify actual idle, printing, paused, progress and remaining time against Studio during a short print.

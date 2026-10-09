@@ -38,7 +38,7 @@ Use a test installation or retain the existing working configuration while check
 
 The repository is structured for the HACS **Integration** category: all runtime files, translations, licenses and dashboard JavaScript are inside `custom_components/eufymake_e1`; `hacs.json` sits at the root.
 
-The prepared repository destination is `aperluss/eufymake-e1`, with `@aperluss` as the code owner. The documentation and issue links target that planned repository; it has not been created or published by this preview. Before release, run Home Assistant hassfest and HACS validation on the target Core version, complete the real-printer checklist below, and create a GitHub release. HACS validation has not yet passed.
+The prepared repository destination is `deadmeat75/eufymake-e1`, with `@deadmeat75` as the code owner. The documentation and issue links target that planned repository; it has not been created or published by this preview. Before release, run Home Assistant hassfest and HACS validation on the target Core version, complete the real-printer checklist below, and create a GitHub release. HACS validation has not yet passed.
 
 Once a repository is published, users can add its URL under HACS custom repositories with type **Integration**, download it, restart Home Assistant, and use the guided setup. HACS installs the bundled card as part of the integration; a second frontend repository is unnecessary.
 
