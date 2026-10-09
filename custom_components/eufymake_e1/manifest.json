@@ -1,0 +1,22 @@
+{
+  "domain": "eufymake_e1",
+  "name": "EufyMake E1 Studio",
+  "codeowners": [
+    "@aperluss"
+  ],
+  "config_flow": true,
+  "dependencies": [
+    "file_upload",
+    "frontend",
+    "http",
+    "panel_custom"
+  ],
+  "documentation": "https://github.com/aperluss/eufymake-e1",
+  "integration_type": "device",
+  "iot_class": "cloud_push",
+  "requirements": [
+    "paho-mqtt==2.1.0"
+  ],
+  "version": "0.2.0",
+  "issue_tracker": "https://github.com/aperluss/eufymake-e1/issues"
+}

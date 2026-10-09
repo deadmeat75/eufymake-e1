@@ -1,0 +1,34 @@
+{
+  "title": "EufyMake E1 Studio",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect your EufyMake E1",
+        "description": "Choose the original files from EufyMake Studio. Files go directly to this Home Assistant instance. Windows profile: %APPDATA%\\eufyMake Studio Profile\\cache\\offline. Choose device_info\\device_list.json and user_info\\login_info.json. Choose the matching broker CA certificate from the Studio installation (make-us.crt in the original US setup). Keep these files private. Setup verifies the cloud connection; it does not require a local MQTT broker.",
+        "data": {
+          "device_file": "Printer file (device_list.json)",
+          "login_file": "Account file (login_info.json)",
+          "ca_file": "Studio CA certificate (.crt or .pem)"
+        }
+      },
+      "printer": {
+        "title": "Select your printer",
+        "description": "Select the E1 to connect. If connection fails, check internet access and that these are current Studio credentials.",
+        "data": {
+          "printer": "Printer"
+        }
+      }
+    },
+    "error": {
+      "invalid_files": "The Studio files or CA certificate could not be read. Select the original files again. Supported regions in this preview: US, CA, MX, EU, GB, DE, FR.",
+      "invalid_auth": "Eufy rejected the connection credentials or topic access. Sign in to Studio again and reimport its current files.",
+      "cannot_connect": "Could not establish a verified connection to Eufy. Check internet access, region and Studio CA certificate.",
+      "wrong_printer": "Select the same printer when refreshing this integration\u2019s credentials.",
+      "invalid_selection": "Select a valid printer."
+    },
+    "abort": {
+      "already_configured": "This printer is already configured.",
+      "reauth_successful": "Printer credentials updated."
+    }
+  }
+}
