@@ -5,7 +5,10 @@ class EufyMakeE1Card extends HTMLElement {
     this.shadowRoot.addEventListener('click', event => {
       const button = event.target.closest?.('button[data-ink-unit]');
       if (!button) return;
+      if (!this._config || !['percent', 'ml'].includes(button.dataset.inkUnit)) return;
       this._inkUnit = button.dataset.inkUnit;
+      try { window.localStorage.setItem(this.unitStorageKey(this._config.device_id), this._inkUnit); }
+      catch (_) { /* Storage may be disabled; keep the current session usable. */ }
       this.render();
     });
   }
@@ -15,11 +18,15 @@ class EufyMakeE1Card extends HTMLElement {
       throw new Error('ink_unit must be percent or ml');
     }
     if (this._config?.device_id !== config.device_id || this._config?.ink_unit !== config.ink_unit) {
-      this._inkUnit = config.ink_unit || 'percent';
+      let saved;
+      try { saved = window.localStorage.getItem(this.unitStorageKey(config.device_id)); }
+      catch (_) { /* Use the configured default when storage is unavailable. */ }
+      this._inkUnit = ['percent', 'ml'].includes(saved) ? saved : config.ink_unit || 'percent';
     }
     this._config = {layout:'horizontal', ...config};
     this.render();
   }
+  unitStorageKey(deviceId) { return 'eufymake_e1:ink_unit:' + deviceId; }
   set hass(value) { this._hass = value; this.render(); }
   connectedCallback() { this._timer = setInterval(() => this.render(), 60000); }
   disconnectedCallback() { clearInterval(this._timer); }

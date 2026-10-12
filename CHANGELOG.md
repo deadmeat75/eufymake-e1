@@ -1,3 +1,8 @@
+# 0.2.7
+
+- Remember percent/mL selection per printer in browser storage across dashboard reloads and layout changes.
+- Keep the toggle usable when browser storage is unavailable; waste and print progress remain percentages.
+
 # 0.2.6
 
 - Replace editable expiration-date entities with seven read-only date sensors; remove dashboard edit buttons and the date-setting service path.

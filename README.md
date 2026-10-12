@@ -1,6 +1,6 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Development preview 0.2.6.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Development preview 0.2.7.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -240,7 +240,7 @@ Never upload your credential files to GitHub, attach them to issue reports, or s
 
 Use the **% / mL** buttons to choose the display unit for the six ink cartridges. Each has a 100 mL capacity, so 65% corresponds to an estimated 65 mL. This is calculated from the printer's percentage, not a separate volume measurement. Ink fill bars and low-ink warnings are unchanged. Waste-tank capacity and print progress remain percentages; unavailable ink remains unavailable.
 
-The choice stays active while the card is open, including live updates and sidebar layout changes. Reloading the page restores the default of percent. For a Lovelace card, add `ink_unit: ml` to select mL by default, or `ink_unit: percent` for percent.
+The ink-unit toggle remembers your selection per printer in this browser, including after reloads and layout changes. Other browsers and devices keep their own preferences. If browser storage is disabled or cleared, the configured default is used. For a Lovelace card, `ink_unit: ml` or `ink_unit: percent` sets the initial default when no saved preference exists.
 
 The dashboard shows when live printer data was last received, including while disconnected. This timestamp refers to the latest received message, not the freshness of every individual sensor. It resets when the integration restarts; saved expiration dates persist independently.
 
