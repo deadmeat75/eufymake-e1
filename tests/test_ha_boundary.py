@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 import bootstrap
 import ha_stubs
-from custom_components.eufymake_e1 import config_flow, coordinator, date, sensor
+from custom_components.eufymake_e1 import config_flow, coordinator, sensor
 from custom_components.eufymake_e1.cloud import CloudAuthError, CloudError
 
 CREDS={'user_id':'TEST','email':'test@example.invalid','region':'US','serial':'TESTSERIAL','secret_key':'00'*32,'ca_pem':'fixture-only'}
@@ -96,17 +96,20 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(entity.available)
         self.assertEqual(entity.extra_state_attributes['eufymake_key'],'print_progress')
 
-    async def test_dates_saved_immediately_and_available_offline(self):
-        entity=date.EufyMakeDate(self.coordinator,'yellow')
-        await entity.async_set_value(dt.date(2030,9,15))
+    async def test_date_sensor_is_read_only_and_available_offline(self):
+        self.coordinator._async_receive('message', {'commandType':1100, 'ink':{'expirationTimestamp':[None,None,1789401600]}})
+        entity=sensor.EufyMakeSensor(self.coordinator,'yellow_expiration_date')
         self.coordinator._async_receive('disconnected',None)
         self.assertTrue(entity.available)
-        self.assertEqual(entity.native_value,dt.date(2030,9,15))
-        self.assertEqual(ha_stubs.Store.saved['eufymake_e1.test-entry.dates']['dates']['yellow'],'2030-09-15')
+        self.assertEqual(entity.native_value,dt.date(2026,9,14))
+        self.assertFalse(hasattr(entity, 'async_set_value'))
+        self.assertFalse(hasattr(self.coordinator, 'async_set_date'))
+        await self.coordinator.async_close()
+        self.assertEqual(ha_stubs.Store.saved['eufymake_e1.test-entry.dates']['dates']['yellow'],'2026-09-14')
 
     async def test_manual_dates_survive_coordinator_restart_and_zero_message(self):
-        await self.coordinator.async_set_date("yellow", dt.date(2030,9,15))
-        await self.coordinator.async_set_date("gloss", dt.date(2030,9,11))
+        self.coordinator.model.set_date("yellow", "2030-09-15")
+        self.coordinator.model.set_date("gloss", "2030-09-11")
         await self.coordinator.async_close()
         self.coordinator=coordinator.EufyMakeCoordinator(self.hass,self.entry)
         await self.coordinator.async_start()
@@ -116,7 +119,7 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.coordinator.model.dates["gloss"], "2030-09-11")
 
     async def test_positive_countdown_clears_manual_override_across_restart(self):
-        await self.coordinator.async_set_date('yellow', dt.date(2030,9,15))
+        self.coordinator.model.set_date("yellow", "2030-09-15")
         self.coordinator._async_receive('message', {'commandType':1100, 'ink':{'distanceExpiration':[None,None,20]}})
         expected = (coordinator.dt_util.now().date() + dt.timedelta(days=20)).isoformat()
         self.assertEqual(self.coordinator.model.dates['yellow'], expected)

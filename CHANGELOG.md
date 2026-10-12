@@ -1,3 +1,10 @@
+# 0.2.6
+
+- Replace editable expiration-date entities with seven read-only date sensors; remove dashboard edit buttons and the date-setting service path.
+- Preserve saved dates and legacy fallback overrides until valid printer data replaces them.
+- Remove only this integration entry's obsolete date entities during setup; custom dashboards and automations must switch their old date entity references to sensors.
+- Update the dashboard explanation and documentation for automatic expiration dates.
+
 # 0.2.5
 
 - Add observed firmware update, calibration/self-check, file transfer, waiting-for-Start and print-head priming status labels.

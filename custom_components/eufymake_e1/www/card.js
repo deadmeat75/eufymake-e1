@@ -102,9 +102,9 @@ const norm = x => String(x ?? '').toLowerCase()
   const days = n => n === null ? 'Expiry —'
     : n <= 0 ? 'Expired' : Math.floor(n) + 'd to expiry';
 
-  // Read persistent dates from helpers. This card never overwrites them.
+  // Read persistent expiration dates from read-only sensors.
   const savedDate = key => {
-    const helper = this.stateFor(key + '_expiration_date', 'date');
+    const helper = this.stateFor(key + '_expiration_date', 'sensor');
     if (!valid(helper)) return null;
     const match = String(helper.state).match(
       /^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/
@@ -396,7 +396,7 @@ const norm = x => String(x ?? '').toLowerCase()
           ${missing} of ${readings.length} live readings unavailable or unmatched.
         </div>` : ''}
         <div style="margin-top:6px;color:#94a3b8;">
-          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
+          Expiration dates are reported by the printer and retained while offline. This monitor does not change cartridge dates or bypass printing lockouts.
         </div>
       </div>
     </div>`;
@@ -440,9 +440,9 @@ const norm = x => String(x ?? '').toLowerCase()
   const days = n => n === null ? 'Expiry —'
     : n <= 0 ? 'Expired' : Math.floor(n) + 'd to expiry';
 
-  // Read persistent dates from helpers. This card never overwrites them.
+  // Read persistent expiration dates from read-only sensors.
   const savedDate = key => {
-    const helper = this.stateFor(key + '_expiration_date', 'date');
+    const helper = this.stateFor(key + '_expiration_date', 'sensor');
     if (!valid(helper)) return null;
     const match = String(helper.state).match(
       /^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/
@@ -740,7 +740,7 @@ const norm = x => String(x ?? '').toLowerCase()
           ${missing} of ${readings.length} live readings unavailable or unmatched.
         </div>` : ''}
         <div style="margin-top:6px;color:#94a3b8;">
-          Date edits only affect Home Assistant. They do not change ink cartridge or printer expiration dates or bypass printing lockouts.
+          Expiration dates are reported by the printer and retained while offline. This monitor does not change cartridge dates or bypass printing lockouts.
         </div>
       </div>
     </div>`;
@@ -765,7 +765,7 @@ class EufyMakeE1Panel extends HTMLElement {
       h1{font-size:20px;margin:0;flex:1}.layout{background:var(--card-background-color);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:8px;padding:8px;cursor:pointer}
       main{max-width:1440px;margin:auto;padding:24px;box-sizing:border-box}footer{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}footer button{background:var(--card-background-color);color:var(--primary-text-color);border:1px solid var(--divider-color);border-radius:8px;padding:8px;cursor:pointer}small{display:block;color:var(--secondary-text-color);margin-bottom:8px}
       @media(max-width:600px){main{padding:12px}header{padding:8px}}
-      </style><header><ha-menu-button></ha-menu-button><h1>EufyMake E1 Monitor</h1><button class="layout">Vertical layout</button></header><main><eufymake-e1-card></eufymake-e1-card><footer></footer><small>Choose a consumable below the dashboard to edit its saved expiration date.</small></main>`;
+      </style><header><ha-menu-button></ha-menu-button><h1>EufyMake E1 Monitor</h1><button class="layout">Vertical layout</button></header><main><eufymake-e1-card></eufymake-e1-card></main>`;
       this._card=this.shadowRoot.querySelector('eufymake-e1-card');
       this.shadowRoot.querySelector('.layout').addEventListener('click', () => {
         this._layout=this._layout === 'horizontal' ? 'vertical' : 'horizontal';
@@ -778,18 +778,7 @@ class EufyMakeE1Panel extends HTMLElement {
     this._card.setConfig({device_id,layout:this._layout});
     this._card.hass=this._hass;
     this.shadowRoot.querySelector('.layout').textContent=this._layout === 'horizontal' ? 'Vertical layout' : 'Horizontal layout';
-    const footer=this.shadowRoot.querySelector('footer');
-    footer.replaceChildren();
-    for (const key of ['cyan','magenta','yellow','black','white','gloss','waste_tank']) {
-      const state=this._card.stateFor(key + '_expiration_date','date');
-      if (!state) continue;
-      const button=document.createElement('button');
-      button.textContent=key.replace('_',' ').replace(/^./, c => c.toUpperCase()) + ' date';
-      button.addEventListener('click', () => this.dispatchEvent(new CustomEvent('hass-more-info', {
-        detail:{entityId:state.entity_id},bubbles:true,composed:true
-      })));
-      footer.append(button);
-    }
+
   }
 }
 if (!customElements.get('eufymake-e1-panel')) customElements.define('eufymake-e1-panel', EufyMakeE1Panel);
