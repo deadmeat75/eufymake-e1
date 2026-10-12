@@ -22,7 +22,7 @@ entity('printer_step',4);
 for (const color of ['cyan','magenta','yellow','black','white','gloss']) {
   entity(color + '_ink_remaining',65.5);
   entity(color + '_ink_expiration','unavailable');
-  entity(color + '_expiration_date',color === 'gloss' ? '2026-09-11' : '2026-09-15','date',true);
+  entity(color + '_expiration_date',color === 'gloss' ? '2026-09-11' : '2026-09-15','sensor',true);
 }
 entity('waste_tank_remaining',50);
 entity('waste_tank_expiration',100);
@@ -83,7 +83,8 @@ for (const layout of ['horizontal', 'vertical']) {
     for (const color of ['cyan','magenta','yellow','black','white','gloss']) entity(color+'_ink_expiration',100);
     card.hass = {states, config:{time_zone:'America/Los_Angeles'}};
     assert(card.shadowRoot.innerHTML.includes(status));
-    assert(card.shadowRoot.innerHTML.includes('Date edits only affect Home Assistant.'));
+    assert(card.shadowRoot.innerHTML.includes('Expiration dates are reported by the printer'));
+    assert(!card.shadowRoot.innerHTML.includes('Date edits only'));
     assert(card.shadowRoot.innerHTML.includes('PRINTER MONITOR'));
     assert(!card.shadowRoot.innerHTML.includes('UV PRINT STUDIO'));
     assert(!card.shadowRoot.innerHTML.includes('Waiting for status'));
@@ -98,3 +99,5 @@ for (const layout of ['horizontal', 'vertical']) {
   assert(card.shadowRoot.received.textContent.includes('No live data received'));
 }
 console.log('Both card layouts verified: 0%, 100%, offline, saved dates, renamed entities, and balanced markup.');
+
+assert(!fs.readFileSync(__dirname + '/../custom_components/eufymake_e1/www/card.js','utf8').includes('hass-more-info'));

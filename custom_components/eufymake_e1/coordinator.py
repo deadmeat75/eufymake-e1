@@ -72,11 +72,6 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         return self.model.snapshot(time.monotonic())
 
-    async def async_set_date(self, key, value):
-        self.model.set_date(key, value.isoformat())
-        await self.store.async_save(self.model.stored_data())
-        self.async_set_updated_data(self.model.snapshot(time.monotonic()))
-
     async def async_close(self):
         if self.closed:
             return

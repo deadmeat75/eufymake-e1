@@ -93,9 +93,11 @@ module('homeassistant.helpers.event',async_track_time_interval=lambda *args:lamb
 module('homeassistant.helpers.storage',Store=Store)
 module('homeassistant.helpers.update_coordinator',DataUpdateCoordinator=Coordinator,CoordinatorEntity=CoordinatorEntity)
 module('homeassistant.helpers.device_registry',DeviceInfo=lambda **fields:fields)
-module('homeassistant.components.sensor',SensorEntity=type('SensorEntity',(),{}),SensorDeviceClass=types.SimpleNamespace(DURATION='duration'))
+module('homeassistant.components.sensor',SensorEntity=type('SensorEntity',(),{}),SensorDeviceClass=types.SimpleNamespace(DURATION='duration',DATE='date'))
 module('homeassistant.components.date',DateEntity=type('DateEntity',(),{}))
 module('homeassistant.core',callback=lambda function:function)
 module('homeassistant.util')
 import datetime
 module('homeassistant.util.dt',now=lambda:datetime.datetime(2026,10,8,tzinfo=datetime.timezone.utc))
+
+module('homeassistant.helpers.entity_registry')

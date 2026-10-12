@@ -8,7 +8,7 @@ from .cloud import CloudAuthError, CloudError
 from .const import CARD_URL, DOMAIN
 from .coordinator import EufyMakeCoordinator
 
-PLATFORMS = [Platform.SENSOR, Platform.DATE]
+PLATFORMS = [Platform.SENSOR]
 
 
 async def async_setup(hass, config):
@@ -32,6 +32,8 @@ async def async_setup_entry(hass, entry):
         raise ConfigEntryNotReady("Could not connect to the Eufy printer service.") from None
     entry.runtime_data = coordinator
     try:
+        from .migration import remove_legacy_date_entities
+        remove_legacy_date_entities(hass, entry, coordinator.device_id)
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
         await panel_custom.async_register_panel(
             hass, frontend_url_path=coordinator.panel_path,

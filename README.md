@@ -1,6 +1,6 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Development preview 0.2.5.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
+**Development preview 0.2.6.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -9,36 +9,25 @@ Tested and working on the maintainer's Home Assistant installation. This is an u
 - Guided setup through Home Assistant.
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
 - 19 native sensors: six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, and remaining time.
-- Seven editable expiration-date entities, stored in Home Assistant and available while the printer is offline.
-- Printer-reported expiration timestamps, including expired ink; manual fallback dates persist when reliable printer dates are missing.
+- Seven read-only expiration-date sensors, stored in Home Assistant and available while the printer is offline.
+- Printer-reported expiration timestamps, including expired ink; previously saved fallback dates persist when reliable printer dates are missing.
 - Automatic sidebar dashboard with horizontal and vertical layouts.
 - Bundled card for existing Lovelace dashboards.
 - Separate identities for each printer.
 
 No local MQTT broker, shell bridge, Prometheus server, or separate dashboard dependency is required.
 
-## Important: expiration date edits
+## Automatic expiration dates
 
-**Changing an expiration date only affects Home Assistant.**
+Expiration dates are read-only. Valid printer `expirationTimestamp` values provide the original UTC date, including for expired cartridges whose countdown is clamped to zero. When timestamps are missing, valid countdown data is used. Dates remain saved while the printer is offline and survive Home Assistant restarts.
 
-Editing a saved date updates the Home Assistant date entity and dashboard display. It does not:
+Previously saved dates are retained during upgrade as fallback values until reliable printer data replaces them. An expired zero countdown alone does not replace a saved date with today. If neither printer data nor a saved date exists, the date is unavailable.
 
-- Change the expiration date stored on the ink cartridge or printer.
-- Update Eufy's cloud data.
-- Reset a cartridge's expiration.
-- Bypass expiration-related printing lockouts.
+This monitor does not modify ink cartridges or the printer and cannot bypass expiration-related printing lockouts.
 
-If the printer refuses to print because a cartridge has expired, changing its date in this integration will not unlock printing.
+### Upgrading from editable dates
 
-Valid printer expiration timestamps automatically replace manual fallback dates. If no valid timestamp is supplied, a positive countdown restores automatic calculation. Saved dates remain available offline and after restart.
-
-## Why manual expiration dates are available
-
-The integration prefers the printer's `expirationTimestamp`, interpreted as a UTC date. Recordings from the maintainer's printer show that expired cartridges still supply their original timestamps even when `distanceExpiration` is zero. A zero countdown on ink marked expired does not mean it expires today; without a valid timestamp, the existing saved date is preserved.
-
-When a timestamp is missing or invalid, the integration falls back to valid countdown data. Manual entry is useful if neither source can establish the date. A valid timestamp or renewed positive countdown replaces the manual fallback automatically, including when a replacement cartridge supplies it. This is based on reported data, not independent cartridge replacement detection.
-
-**All date edits affect Home Assistant only. They do not change the cartridge or printer, reset expiration, or bypass printing lockouts.**
+Version 0.2.6 replaces the seven `date` entities with read-only `sensor` entities. The obsolete date entities are removed only for this integration's configured printer. Update any automations or custom dashboards that reference the old `date.*_expiration_date` entities to use the new sensors; date-setting actions are no longer supported. Other printer sensors keep their identities. The bundled dashboard updates automatically.
 
 ## Requirements
 
@@ -198,12 +187,12 @@ Setup checks the cloud connection before completing.
 
 1. Open the **EufyMake** sidebar dashboard.
 2. Refresh your browser if the card has not loaded.
-3. Use the date buttons below the dashboard to enter or edit saved expiration dates. You can also edit the native date entities on the device page.
+3. Read the automatic expiration dates on the dashboard or the native expiration-date sensors.
 
 New entities use printer-specific IDs such as:
 
 - `sensor.eufymake_e1_<serial>_*`
-- `date.eufymake_e1_<serial>_*`
+- `sensor.eufymake_e1_<serial>_*_expiration_date` (read-only dates)
 
 Existing legacy sensors and helpers are not modified. Dates from legacy helpers are not automatically migrated.
 
