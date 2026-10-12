@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Connect your EufyMake E1",
-        "description": "Choose the original files from EufyMake Studio. Files go directly to this Home Assistant instance. Windows profile: %APPDATA%\\eufyMake Studio Profile\\cache\\offline. Choose device_info\\device_list.json and user_info\\login_info.json. Choose the matching broker CA certificate from the Studio installation (make-us.crt in the original US setup). Keep these files private. Setup verifies the cloud connection; it does not require a local MQTT broker.",
+        "description": "Choose the original files from Anker Make Studio (formerly EufyMake Studio). Files go directly to this Home Assistant instance. Verified legacy Windows profile (new app versions may use a different folder): %APPDATA%\\eufyMake Studio Profile\\cache\\offline. Choose device_info\\device_list.json and user_info\\login_info.json. Choose the matching broker CA certificate from the Studio installation (make-us.crt in the original US setup). Keep these files private. Setup verifies the cloud connection; it does not require a local MQTT broker.",
         "data": {
           "device_file": "Printer file (device_list.json)",
           "login_file": "Account file (login_info.json)",

@@ -1,6 +1,6 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Development preview 0.2.4.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
+**Development preview 0.2.5.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and editable expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -10,7 +10,7 @@ Tested and working on the maintainer's Home Assistant installation. This is an u
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
 - 19 native sensors: six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, and remaining time.
 - Seven editable expiration-date entities, stored in Home Assistant and available while the printer is offline.
-- Manual dates preserved across restarts and unavailable countdowns; renewed positive countdowns restore automatic dates.
+- Printer-reported expiration timestamps, including expired ink; manual fallback dates persist when reliable printer dates are missing.
 - Automatic sidebar dashboard with horizontal and vertical layouts.
 - Bundled card for existing Lovelace dashboards.
 - Separate identities for each printer.
@@ -30,24 +30,22 @@ Editing a saved date updates the Home Assistant date entity and dashboard displa
 
 If the printer refuses to print because a cartridge has expired, changing its date in this integration will not unlock printing.
 
-Manual dates remain saved while countdowns are unavailable, zero, or negative. A valid positive countdown automatically recalculates the date and clears its manual override, including when a new cartridge supplies that data. Dates saved by version 0.2.0 are preserved until positive countdown data arrives.
+Valid printer expiration timestamps automatically replace manual fallback dates. If no valid timestamp is supplied, a positive countdown restores automatic calculation. Saved dates remain available offline and after restart.
 
 ## Why manual expiration dates are available
 
-When the printer reports a valid days-until-expiration countdown, the integration calculates and saves the expiration date in Home Assistant. That saved date remains visible after expiration, even if the countdown becomes unavailable, and survives Home Assistant restarts.
+The integration prefers the printer's `expirationTimestamp`, interpreted as a UTC date. Recordings from the maintainer's printer show that expired cartridges still supply their original timestamps even when `distanceExpiration` is zero. A zero countdown on ink marked expired does not mean it expires today; without a valid timestamp, the existing saved date is preserved.
 
-On the maintainer's printer, expired ink may report its countdown as unavailable. If the integration never received a valid countdown for that cartridge and has no saved date, it cannot determine the original expiration date. Enter the known date manually using the dashboard date button or the native date entity.
+When a timestamp is missing or invalid, the integration falls back to valid countdown data. Manual entry is useful if neither source can establish the date. A valid timestamp or renewed positive countdown replaces the manual fallback automatically, including when a replacement cartridge supplies it. This is based on reported data, not independent cartridge replacement detection.
 
-Manual entry is not needed simply because a previously saved date has passed. The integration also accepts valid zero and negative countdowns when supplied by the printer.
-
-A manually entered date is a fallback while countdowns are unavailable, zero, or negative. When the printer supplies a valid positive countdown, the integration recalculates the date and clears the manual override automatically. This uses renewed positive data as its trigger; it does not independently detect cartridge replacement. These edits only affect Home Assistant and do not change cartridge or printer data or bypass printing lockouts.
+**All date edits affect Home Assistant only. They do not change the cartridge or printer, reset expiration, or bypass printing lockouts.**
 
 ## Requirements
 
 - Home Assistant Core **2026.10.0 or later**, on Home Assistant OS or Container.
 - A registered EufyMake E1 printer.
 - Internet access to Eufy's cloud broker.
-- EufyMake Studio installed and signed in on your computer.
+- Anker Make Studio (formerly EufyMake Studio) installed and signed in on your computer.
 - Your Studio `device_list.json`, `login_info.json`, and matching broker CA certificate.
 
 This integration requires credentials and cloud access. It is not a local-only or passwordless printer connection.
@@ -78,9 +76,11 @@ Install the native integration, not the previous app/add-on prototype.
 
 ## Find your Studio files on Windows
 
+The desktop app is now called **Anker Make Studio**. The paths below were verified with its earlier EufyMake Studio version; the app rename does not establish that its folders were renamed. If the paths are missing, use the new app's shortcut to find its installation folder and search for the same filenames. Do not substitute guessed folder names or use stale profiles from another account.
+
 ### Before you begin
 
-Open EufyMake Studio on the Windows computer you normally use with your printer. Sign in to the account that owns the E1 and confirm that the printer appears in Studio.
+Open Anker Make Studio (formerly EufyMake Studio) on the Windows computer you normally use with your printer. Sign in to the account that owns the E1 and confirm that the printer appears in Studio.
 
 Use files belonging to that account and printer.
 
@@ -217,7 +217,7 @@ Supported region mappings currently include US, CA, MX, EU, GB, DE, and FR.
 
 ### Authentication failed
 
-Sign in to EufyMake Studio again and reimport its current files. Confirm that the selected files belong to the account that owns the printer.
+Sign in to Anker Make Studio (formerly EufyMake Studio) again and reimport its current files. Confirm that the selected files belong to the account that owns the printer.
 
 ### Connection failed
 
@@ -281,13 +281,24 @@ The card uses entity metadata, so renamed entity IDs continue to work. Narrow sc
 
 The protocol implementation handles complete single frames. Fragmented frames are ignored; reassembly is not implemented.
 
-Known printer status mappings are:
+Known printer status mappings (state/step) are:
 
-- `0/0`: Idle.
-- `2/3`: Paused.
-- `2/4`: Printing.
-- `5/7`: Automatic flash clean (observed on the maintainer's printer).
-- `8/0`: Taking snapshot (observed on the maintainer's printer).
+| Pair | Dashboard status |
+| --- | --- |
+| `0/0` | Idle |
+| `2/1` | Transferring print file |
+| `2/2` | Waiting for Start |
+| `2/3` | Paused |
+| `2/4` | Printing |
+| `2/6` | Priming print head |
+| `5/7` | Automatic flash clean |
+| `5/10` | Automatic deep cleaning |
+| `6/1` | Updating firmware |
+| `8/0` | Taking snapshot |
+| `9/0` | Calibration / self-check |
+| `13/1` | Maintenance — inject ink before printing |
+
+These mappings use observations from the maintainer's E1. File transfer is supported by download-progress messages. Deep cleaning and the subsequent maintenance state are inferred from the October 12 recording and matching Studio maintenance history/screenshots. They are not an official protocol specification. `2/5` and `8/2` remain unknown; no unverified action is performed by the integration.
 
 Other combinations display **Unknown**.
 
