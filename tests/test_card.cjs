@@ -76,7 +76,7 @@ assert(!card.shadowRoot.innerHTML.includes('NaN'));
 assert(registry.has('eufymake-e1-panel'));
 for (const layout of ['horizontal', 'vertical']) {
   card.setConfig({device_id:prefix, layout});
-  for (const status of ['Printing', 'Automatic flash clean', 'Taking snapshot']) {
+  for (const status of ['Printing', 'Automatic flash clean', 'Taking snapshot', 'Priming print head', 'Waiting for Start', 'Automatic deep cleaning', 'Maintenance — inject ink before printing']) {
     entity('printer_status', status);
     states['sensor.' + prefix + '_printer_status'].attributes.last_received = '2026-10-09T23:15:00+00:00';
     // All live readings available: disclaimer must still be present.

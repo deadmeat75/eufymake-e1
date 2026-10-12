@@ -1,5 +1,5 @@
 """Printer state with independent reading freshness and persistent dates."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 import math
 import re
 from .const import CHANNELS, CONSUMABLES, MAX_AGE, SENSOR_KEYS
@@ -52,12 +52,21 @@ class PrinterState:
     def _set(self, key, value, now):
         self.readings[key] = (value, now)
 
-    def _expiry(self, key, value, now, today):
+    def _expiry(self, key, value, now, today, timestamp=None, expired=False):
         days = numeric(value)
         if days is not None and (days != int(days) or abs(days) > 36500):
             days = None
         suffix = "_expiration" if key == "waste_tank" else "_ink_expiration"
         self._set(key + suffix, days, now)
+        stamp = numeric(timestamp)
+        # Printer dates are UTC Unix seconds. Reject placeholders and implausible dates.
+        if stamp is not None and stamp == int(stamp) and 946684800 <= stamp < 4102444800:
+            self.dates[key] = datetime.fromtimestamp(stamp, timezone.utc).date().isoformat()
+            self.manual_dates.discard(key)
+            return
+        # Expired cartridges can report a clamped zero, not today's expiration date.
+        if expired and days == 0:
+            return
         if days is not None and (key not in self.manual_dates or days > 0):
             self.manual_dates.discard(key)
             self.dates[key] = (today + timedelta(days=days)).isoformat()
@@ -70,23 +79,34 @@ class PrinterState:
             ink = item.get("ink")
             ink = ink if isinstance(ink, dict) else {}
             levels, expiry = ink.get("leftInk"), ink.get("distanceExpiration")
+            timestamps, expired = ink.get("expirationTimestamp"), ink.get("expired")
             for index, key in enumerate(CHANNELS.values()):
                 raw = levels[index] if isinstance(levels, list) and index < len(levels) else None
                 days = expiry[index] if isinstance(expiry, list) and index < len(expiry) else None
                 self._set(key + "_ink_remaining", percentage(raw), now)
-                self._expiry(key, days, now, today)
+                stamp = timestamps[index] if isinstance(timestamps, list) and index < len(timestamps) else None
+                is_expired = expired[index] == 1 if isinstance(expired, list) and index < len(expired) else False
+                self._expiry(key, days, now, today, stamp, is_expired)
             waste = item.get("wasteInk")
             waste = waste if isinstance(waste, dict) else {}
             raw = waste.get("leftInk")
             raw = raw[0] if isinstance(raw, list) and raw else raw
             self._set("waste_tank_remaining", percentage(raw), now)
-            self._expiry("waste_tank", waste.get("distanceExpiration"), now, today)
+            self._expiry("waste_tank", waste.get("distanceExpiration"), now, today, waste.get("expirationTimestamp"), waste.get("expired") == 1)
         elif command == 1000:
             status = item.get("status")
             if isinstance(status, dict):
                 state, step = status.get("state"), status.get("step")
                 if type(state) is int and type(step) is int:
-                    label = {(0, 0): "Idle", (2, 3): "Paused", (2, 4): "Printing", (5, 7): "Automatic flash clean", (8, 0): "Taking snapshot"}.get((state, step), "Unknown")
+                    label = {
+                        (0, 0): "Idle", (2, 1): "Transferring print file",
+                        (2, 2): "Waiting for Start", (2, 3): "Paused",
+                        (2, 4): "Printing", (2, 6): "Priming print head",
+                        (5, 7): "Automatic flash clean", (5, 10): "Automatic deep cleaning",
+                        (6, 1): "Updating firmware", (8, 0): "Taking snapshot",
+                        (9, 0): "Calibration / self-check",
+                        (13, 1): "Maintenance — inject ink before printing",
+                    }.get((state, step), "Unknown")
                     self._set("printer_status", label, now)
                     self._set("printer_step", step, now)
         elif command == 1001:

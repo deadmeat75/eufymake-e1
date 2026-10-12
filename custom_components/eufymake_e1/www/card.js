@@ -179,7 +179,10 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? 'Print paused'
     : mode === 'idle' ? 'Standing by'
     : mode === 'automatic flash clean' ? 'Automatic flash clean'
-    : mode === 'taking snapshot' ? 'Taking snapshot' : 'Waiting for status';
+    : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
+      'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
+      'Calibration / self-check', 'Maintenance — inject ink before printing'].includes(status)
+      ? status : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor, progressSensor,
@@ -514,7 +517,10 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? 'Print paused'
     : mode === 'idle' ? 'Standing by'
     : mode === 'automatic flash clean' ? 'Automatic flash clean'
-    : mode === 'taking snapshot' ? 'Taking snapshot' : 'Waiting for status';
+    : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
+      'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
+      'Calibration / self-check', 'Maintenance — inject ink before printing'].includes(status)
+      ? status : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor, progressSensor,

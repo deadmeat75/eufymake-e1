@@ -78,9 +78,55 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(restored.dates['cyan'], '2030-10-18')
 
     def test_observed_maintenance_and_snapshot_states(self):
-        for state, step, expected in [(5,7,'Automatic flash clean'), (8,0,'Taking snapshot'), (0,0,'Idle'), (2,4,'Printing'), (2,6,'Unknown')]:
+        for state, step, expected in [(5,7,'Automatic flash clean'), (8,0,'Taking snapshot'), (0,0,'Idle'), (2,4,'Printing'), (2,6,'Priming print head')]:
             self.model.apply({'commandType':1000,'status':{'state':state,'step':step}}, 100, TODAY)
             self.assertEqual(self.model.snapshot(101)['printer_status'], expected)
+
+    def test_printer_timestamp_recovers_expired_ink_and_clears_manual_override(self):
+        self.model.set_date('yellow', '2030-09-15')
+        changed = self.model.apply({'commandType':1100, 'ink':{
+            'distanceExpiration':[100,105,0], 'expired':[0,0,1],
+            'expirationTimestamp':[1800460800,1800892800,1789401600]}}, 100, dt.date(2026,10,12))
+        self.assertTrue(changed)
+        self.assertEqual(self.model.dates['yellow'], '2026-09-14')
+        self.assertNotIn('yellow', self.model.manual_dates)
+        self.assertEqual(self.model.snapshot(101)['yellow_ink_expiration'], 0)
+        stored = self.model.stored_data()
+        restored = PrinterState(stored['dates'], manual_dates=stored['manual_dates'])
+        restored.apply({'commandType':1100, 'ink':{'distanceExpiration':[None,None,0], 'expired':[0,0,1]}},200,TODAY)
+        self.assertEqual(restored.dates['yellow'], '2026-09-14')
+
+    def test_invalid_timestamps_fall_back_without_crashing(self):
+        for stamp in (None, True, '1789401600', 0, -1, float('nan'), float('inf'), 4102444800, 1789401600.5):
+            with self.subTest(stamp=stamp):
+                self.model.apply({'commandType':1100, 'ink':{'expirationTimestamp':[stamp], 'distanceExpiration':[10]}},100,TODAY)
+                self.assertEqual(self.model.dates['cyan'], '2030-10-18')
+
+    def test_expired_zero_without_timestamp_preserves_saved_date(self):
+        for manual in (False, True):
+            self.model = PrinterState({'cyan':'2026-09-14'}, manual_dates=['cyan'] if manual else [])
+            self.model.apply({'commandType':1100, 'ink':{'expired':[1], 'distanceExpiration':[0]}},100,TODAY)
+            self.assertEqual(self.model.dates['cyan'], '2026-09-14')
+        empty = PrinterState()
+        empty.apply({'commandType':1100, 'ink':{'expired':[1], 'distanceExpiration':[0]}},100,TODAY)
+        self.assertNotIn('cyan', empty.dates)
+
+    def test_waste_timestamp_and_short_ink_arrays(self):
+        self.model.apply({'commandType':1100, 'ink':{'expirationTimestamp':[1800460800]},
+            'wasteInk':{'expirationTimestamp':1811260800,'distanceExpiration':225}},100,TODAY)
+        self.assertEqual(self.model.dates['cyan'], '2027-01-20')
+        self.assertEqual(self.model.dates['waste_tank'], '2027-05-25')
+        self.assertNotIn('magenta', self.model.dates)
+
+    def test_new_status_pairs_and_unknown_transients(self):
+        pairs = [(2,1,'Transferring print file'),(2,2,'Waiting for Start'),
+            (6,1,'Updating firmware'),(9,0,'Calibration / self-check'),
+            (5,10,'Automatic deep cleaning'),(13,1,'Maintenance — inject ink before printing'),
+            (2,5,'Unknown'),(8,2,'Unknown')]
+        for state,step,label in pairs:
+            with self.subTest(state=state,step=step):
+                self.model.apply({'commandType':1000,'status':{'state':state,'step':step}},100,TODAY)
+                self.assertEqual(self.model.snapshot(101)['printer_status'],label)
 
     def test_missing_channels_do_not_keep_stale_levels(self):
         self.model.apply({'commandType':1100,'ink':{'leftInk':[6500]*6}}, 100, TODAY)
