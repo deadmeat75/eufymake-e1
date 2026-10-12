@@ -298,7 +298,7 @@ Known printer status mappings (state/step) are:
 | `9/0` | Calibration / self-check |
 | `13/1` | Maintenance — inject ink before printing |
 
-These mappings use observations from the maintainer's E1. File transfer is supported by download-progress messages. Deep cleaning and the subsequent maintenance state are inferred from the October 12 recording and matching Studio maintenance history/screenshots. They are not an official protocol specification. `2/5` and `8/2` remain unknown; no unverified action is performed by the integration.
+These mappings use observations from the maintainer's E1. File transfer is supported by download-progress messages. Deep cleaning and the subsequent maintenance state are supported by the October 12 recording, Studio maintenance history, and its 00:42 notification that routine maintenance completed and the print head would remain in maintenance status. The recording switches from `5/10` to `13/1` at that time; the Studio status page says to inject ink before printing. They are not an official protocol specification. `2/5` and `8/2` remain unknown; no unverified action is performed by the integration.
 
 Other combinations display **Unknown**.
 

@@ -1,7 +1,7 @@
 # 0.2.5
 
 - Add observed firmware update, calibration/self-check, file transfer, waiting-for-Start and print-head priming status labels.
-- Label automatic deep cleaning and its subsequent ink-injection maintenance state using recorded transitions and matching Studio screenshots.
+- Label automatic deep cleaning and its subsequent ink-injection maintenance state using recorded transitions, matching Studio screenshots and its maintenance-completed notification.
 - Prefer valid printer expiration timestamps, including expired cartridges; retain manual/countdown fallbacks and reject invalid timestamps.
 - Preserve saved dates when expired ink reports a clamped zero countdown without a valid timestamp.
 - Refer to the desktop app as Anker Make Studio (formerly EufyMake Studio); retain verified legacy file locations with a folder-version clarification.
