@@ -4,7 +4,8 @@ const assert = require('assert');
 const registry = new Map();
 global.HTMLElement = class { attachShadow() { this.shadowRoot = {innerHTML:'', addEventListener(type, fn) { this.onclick = fn; }, received:{textContent:''}, querySelector() { return this.received; }}; } };
 global.customElements = {get:key => registry.get(key), define:(key,value) => registry.set(key,value)};
-global.window = {};
+const preferences = new Map();
+global.window = {localStorage:{getItem:key => preferences.get(key) ?? null, setItem:(key,value) => preferences.set(key,value)}};
 vm.runInThisContext(fs.readFileSync(__dirname + '/../custom_components/eufymake_e1/www/card.js','utf8'));
 const Card = registry.get('eufymake-e1-card');
 const card = new Card();
@@ -65,6 +66,7 @@ for (const layout of ['horizontal','vertical']) {
   assert(card.shadowRoot.innerHTML.includes('100.0%'));
   for (const key of ['cyan','magenta','yellow']) entity(key+'_ink_remaining',65.5);
 }
+preferences.clear();
 const mlCard = new Card();
 mlCard.setConfig({device_id:prefix,ink_unit:'ml'});
 mlCard.hass = {states,config:{time_zone:'America/Los_Angeles'}};
@@ -101,3 +103,26 @@ for (const layout of ['horizontal', 'vertical']) {
 console.log('Both card layouts verified: 0%, 100%, offline, saved dates, renamed entities, and balanced markup.');
 
 assert(!fs.readFileSync(__dirname + '/../custom_components/eufymake_e1/www/card.js','utf8').includes('hass-more-info'));
+
+// A recreated card (reload or layout change) restores this printer's preference.
+mlCard.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+const restored = new Card();
+restored.setConfig({device_id:prefix,layout:'vertical'});
+restored.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+assert(restored.shadowRoot.innerHTML.includes('65.5 mL'));
+restored.setConfig({device_id:prefix,layout:'horizontal'});
+assert(restored.shadowRoot.innerHTML.includes('65.5 mL'));
+const other = new Card();
+other.setConfig({device_id:'eufymake_e1_other'});
+assert.strictEqual(other._inkUnit,'percent');
+preferences.set(restored.unitStorageKey(prefix),'invalid');
+const invalid = new Card();
+invalid.setConfig({device_id:prefix});
+assert.strictEqual(invalid._inkUnit,'percent');
+window.localStorage = {getItem:() => {throw new Error('blocked');},setItem:() => {throw new Error('blocked');}};
+const blocked = new Card();
+blocked.setConfig({device_id:prefix});
+blocked.hass = {states,config:{time_zone:'America/Los_Angeles'}};
+blocked.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+assert(blocked.shadowRoot.innerHTML.includes('65.5 mL'));
+console.log('Ink preference verified across card recreation, layouts, printers and blocked storage.');
