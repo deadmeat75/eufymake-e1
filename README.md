@@ -1,6 +1,6 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Development preview 0.2.7.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Stable release 1.0.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -8,7 +8,7 @@ Tested and working on the maintainer's Home Assistant installation. This is an u
 
 - Guided setup through Home Assistant.
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
-- 19 native sensors: six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, and remaining time.
+- 23 live sensors (plus seven saved-date sensors): six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, remaining time, activity progress, bed type, measured surface height, and printer lighting status.
 - Seven read-only expiration-date sensors, stored in Home Assistant and available while the printer is offline.
 - Printer-reported expiration timestamps, including expired ink; previously saved fallback dates persist when reliable printer dates are missing.
 - Automatic sidebar dashboard with horizontal and vertical layouts.
@@ -244,6 +244,20 @@ The ink-unit toggle remembers your selection per printer in this browser, includ
 
 The dashboard shows when live printer data was last received, including while disconnected. This timestamp refers to the latest received message, not the freshness of every individual sensor. It resets when the integration restarts; saved expiration dates persist independently.
 
+## Activity and printer details
+
+The dashboard distinguishes print progress from **snapshot progress** (command 1105) and **ink-injection progress** (1136). Percentages belong to the active operation and are cleared when it changes. A print can report 100% with time remaining: it remains Printing until the printer reports a different status. When not printing, print time reads Not printing and old print progress is hidden. Expected inactive print readings are excluded from the missing-readings warning; missing ink and waste readings still count.
+
+Read-only printer details show:
+
+- **Bed:** observed code `2` is displayed as Mini Flatbed. Other numeric codes are shown as unrecognized, rather than guessed. This is the printer-reported bed setting, not independent verification of physically installed hardware.
+- **Measured surface height:** millimeters from snapshot measurements, displayed to one decimal place. This is a reported measurement, not a height control.
+- **Printer light:** reported On/Off status; no lighting control is added.
+
+Each detail shows its own Last reported time in Home Assistant's timezone. Live fields become unavailable after 120 seconds without a fresh reading, or on disconnect; last-report timestamps remain visible until integration restart. Optional details are not included in the general missing-readings warning because some operations may not report them. Activity progress likewise becomes unavailable when missing or stale.
+
+The `13/0` description is inferred from the maintenance sequence and matching Studio history. It indicates ink injection is required after moisturizing; it does not initiate injection. Camera access, printer controls, and unverified accessory mappings are not included in 1.0.0.
+
 ## Existing Lovelace dashboards
 
 The integration registers its card automatically. To add it to an existing dashboard:
@@ -263,7 +277,7 @@ The card uses entity metadata, so renamed entity IDs continue to work. Narrow sc
 ## Validation and limitations
 
 - Installation and operation confirmed on the maintainer's Home Assistant instance.
-- All 39 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
+- All 51 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
 - JavaScript rendering checks passed for both dashboard layouts, including renamed entities and unavailable readings.
 - hassfest and HACS repository validation remain pending.
 - Development tests do not establish compatibility with every Home Assistant installation or printer region.
@@ -280,11 +294,14 @@ Known printer status mappings (state/step) are:
 | `2/3` | Paused |
 | `2/4` | Printing |
 | `2/6` | Priming print head |
+| `5/3` | Injecting ink |
 | `5/7` | Automatic flash clean |
+| `5/9` | Automatic moisturizing |
 | `5/10` | Automatic deep cleaning |
 | `6/1` | Updating firmware |
 | `8/0` | Taking snapshot |
 | `9/0` | Calibration / self-check |
+| `13/0` | Maintenance — ink injection required after moisturizing (inferred) |
 | `13/1` | Maintenance — inject ink before printing |
 
 These mappings use observations from the maintainer's E1. File transfer is supported by download-progress messages. Deep cleaning and the subsequent maintenance state are supported by the October 12 recording, Studio maintenance history, and its 00:42 notification that routine maintenance completed and the print head would remain in maintenance status. The recording switches from `5/10` to `13/1` at that time; the Studio status page says to inject ink before printing. They are not an official protocol specification. `2/5` and `8/2` remain unknown; no unverified action is performed by the integration.

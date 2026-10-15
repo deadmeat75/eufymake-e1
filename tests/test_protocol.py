@@ -30,6 +30,17 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(len(topics),5)
         self.assertTrue(all('#' not in topic and '+' not in topic for topic in topics))
 
+    def test_monitoring_commands_cross_transport_boundary(self):
+        import threading
+        transport = object.__new__(CloudClient)
+        transport.stopping = threading.Event()
+        transport.key = bytes(32)
+        transport.on_event = Mock()
+        commands = [1105,1118,1133,1136,9999]
+        body = json.dumps([{'commandType':command} for command in commands]).encode()
+        transport._on_message(None,None,SimpleNamespace(payload=build_app_frame(transport.key,body)))
+        self.assertEqual([call.args[1]['commandType'] for call in transport.on_event.call_args_list],commands[:-1])
+
     def test_batched_messages_and_corrupt_frame(self):
         transport = object.__new__(CloudClient)
         import threading

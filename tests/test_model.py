@@ -14,7 +14,7 @@ class ModelTests(unittest.TestCase):
 
     def test_native_keys_and_unknown_startup(self):
         state = self.model.snapshot(100)
-        self.assertEqual(len(state), 26)
+        self.assertEqual(len(state), 30)
         self.assertTrue(all(value is None for value in state.values()))
 
     def test_six_ink_levels_and_waste(self):

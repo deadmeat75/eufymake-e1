@@ -26,6 +26,7 @@ def device_id(serial):
 class PrinterState:
     def __init__(self, dates=None, max_age=MAX_AGE, manual_dates=None):
         self.readings = {}
+        self.current_pair = None
         self.connected = False
         self.max_age = max_age
         self.dates = {}
@@ -98,10 +99,19 @@ class PrinterState:
             if isinstance(status, dict):
                 state, step = status.get("state"), status.get("step")
                 if type(state) is int and type(step) is int:
+                    pair = (state, step)
+                    if pair != self.current_pair:
+                        self.readings.pop("activity_progress", None)
+                        if pair not in ((2, 4), (2, 3)) or self.current_pair not in ((2, 4), (2, 3)):
+                            for key in ("print_progress", "time_remaining", "print_time"):
+                                self.readings.pop(key, None)
+                    self.current_pair = pair
                     label = {
                         (0, 0): "Idle", (2, 1): "Transferring print file",
                         (2, 2): "Waiting for Start", (2, 3): "Paused",
                         (2, 4): "Printing", (2, 6): "Priming print head",
+                        (5, 3): "Injecting ink", (5, 9): "Automatic moisturizing",
+                        (13, 0): "Maintenance — ink injection required after moisturizing",
                         (5, 7): "Automatic flash clean", (5, 10): "Automatic deep cleaning",
                         (6, 1): "Updating firmware", (8, 0): "Taking snapshot",
                         (9, 0): "Calibration / self-check",
@@ -109,20 +119,43 @@ class PrinterState:
                     }.get((state, step), "Unknown")
                     self._set("printer_status", label, now)
                     self._set("printer_step", step, now)
-        elif command == 1001:
+        elif command == 1001 and self.current_pair in (None, (2, 4), (2, 3)):
             progress, remaining = numeric(item.get("progress")), numeric(item.get("time"))
             self._set("print_progress", progress / 100 if progress is not None and 0 <= progress <= 10000 else None, now)
             self._set("time_remaining", remaining if remaining is not None and remaining >= 0 else None, now)
         elif command == 1068:
             value = numeric(item.get("totalTime"))
             self._set("print_time", value if value is not None and value >= 0 else None, now)
+        elif command in (1105, 1136):
+            expected = (8, 0) if command == 1105 else (5, 3)
+            if self.current_pair == expected:
+                progress = numeric(item.get("progress"))
+                self._set("activity_progress", progress if progress is not None and 0 <= progress <= 100 else None, now)
+            if command == 1105:
+                height = numeric(item.get("height"))
+                if "height" in item:
+                    self._set("surface_height", height if height is not None and 0 <= height <= 1000 else None, now)
+                if "plate_type" in item:
+                    self._bed(item.get("plate_type"), now)
+        elif command == 1118:
+            self._bed(item.get("plateType"), now)
+        elif command == 1133:
+            light = item.get("light")
+            self._set("printer_light", {0: "Off", 1: "On"}.get(light) if type(light) is int else None, now)
         return before != self.stored_data()
+
+    def _bed(self, value, now):
+        label = "Mini Flatbed" if value == 2 else "Unrecognized bed (code %s)" % value
+        self._set("bed_type", label if type(value) is int and 0 <= value <= 65535 else None, now)
 
     def snapshot(self, now):
         data = {}
         for key in SENSOR_KEYS:
             value, stamp = self.readings.get(key, (None, 0))
             data[key] = value if self.connected and 0 <= now - stamp <= self.max_age else None
+        if self.current_pair is not None and self.current_pair not in ((2, 4), (2, 3)):
+            for key in ("print_progress", "time_remaining", "print_time"):
+                data[key] = None
         for key in CONSUMABLES:
             data[key + "_expiration_date"] = self.dates.get(key)
         return data
@@ -131,3 +164,4 @@ class PrinterState:
         self.connected = False
         # A reconnect cannot make readings from the previous session appear fresh.
         self.readings.clear()
+        self.current_pair = None

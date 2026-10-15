@@ -95,6 +95,15 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(entity.native_value,23)
         self.assertTrue(entity.available)
         self.assertEqual(entity.extra_state_attributes['eufymake_key'],'print_progress')
+        self.assertEqual(entity.extra_state_attributes['reading_received'],self.coordinator.last_received)
+        self.coordinator._async_receive('message', {'commandType':1105,'height':16.629375})
+        height = sensor.EufyMakeSensor(self.coordinator,'surface_height')
+        received = height.extra_state_attributes['reading_received']
+        self.assertEqual(height._attr_native_unit_of_measurement,'mm')
+        self.assertEqual(height.native_value,16.629375)
+        self.coordinator._async_receive('disconnected',None)
+        self.assertFalse(height.available)
+        self.assertEqual(height.extra_state_attributes['reading_received'],received)
 
     async def test_date_sensor_is_read_only_and_available_offline(self):
         self.coordinator._async_receive('message', {'commandType':1100, 'ink':{'expirationTimestamp':[None,None,1789401600]}})
