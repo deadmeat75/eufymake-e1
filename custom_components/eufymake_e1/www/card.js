@@ -43,6 +43,18 @@ class EufyMakeE1Card extends HTMLElement {
     const match = Object.values(hass.states).find(s => s.attributes?.eufymake_device_id);
     return {type:'custom:eufymake-e1-card', device_id:match?.attributes.eufymake_device_id || 'eufymake_e1_yourserial', layout:'horizontal'};
   }
+  printerDetails() {
+    const esc = value => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    const valid = value => value && !['unknown','unavailable','none',''].includes(String(value.state).toLowerCase());
+    const fields = [['bed_type','Bed'],['surface_height','Measured surface height'],['printer_light','Printer light']];
+    return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">${fields.map(([key,label]) => {
+      const value = this.stateFor(key);
+      const stamp = value?.attributes?.reading_received;
+      const date = stamp ? new Date(stamp) : null;
+      const time = date && Number.isFinite(date.getTime()) ? date.toLocaleString(this._hass.locale?.language || 'en-US', {timeZone:this._hass.config?.time_zone || 'UTC'}) : null;
+      return `<div style="flex:1;min-width:150px;padding:12px;border:1px solid #334155;border-radius:12px"><small>${label}</small><div>${valid(value) ? esc(key === 'surface_height' ? Number(value.state).toFixed(1) + ' mm' : value.state) : 'Unavailable'}</div><small>${time ? 'Last reported: ' + esc(time) : 'Not reported since startup'}</small></div>`;
+    }).join('')}</div>`;
+  }
   getCardSize() { return this._config?.layout === 'vertical' ? 12 : 6; }
   render() {
     if (!this._hass || !this._config) return;
@@ -66,7 +78,7 @@ class EufyMakeE1Card extends HTMLElement {
       <span>Estimated ink:</span>
       <button type="button" data-ink-unit="percent" aria-pressed="${this._inkUnit !== 'ml'}">%</button>
       <button type="button" data-ink-unit="ml" aria-pressed="${this._inkUnit === 'ml'}">mL</button>
-    </div>${panel}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
+    </div>${panel}${this.printerDetails()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
     this.shadowRoot.querySelector('.last-received').textContent = receivedDate && Number.isFinite(receivedDate.getTime())
       ? 'Last live data received: ' + receivedText : receivedText;
   }
@@ -180,7 +192,10 @@ const norm = x => String(x ?? '').toLowerCase()
   const accent = mode === 'printing' ? '#22d3ee'
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
-  const progress = num(progressSensor);
+  const printRelevant = ['printing', 'paused'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink'].includes(mode);
+  const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
+  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -188,12 +203,13 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'automatic flash clean' ? 'Automatic flash clean'
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
-      'Calibration / self-check', 'Maintenance — inject ink before printing'].includes(status)
+      'Calibration / self-check', 'Maintenance — inject ink before printing',
+      'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : 'Waiting for status';
 
   const readings = [
-    statusSensor, stepSensor, progressSensor,
-    printTimeSensor, remainingSensor
+    statusSensor, stepSensor,
+    ...(printRelevant ? [progressSensor, printTimeSensor, remainingSensor] : [])
   ];
   const warnings = [];
   const inks = [
@@ -318,7 +334,7 @@ const norm = x => String(x ?? '').toLowerCase()
               ${progress === null ? '—' : Math.round(p) + '%'}
             </div>
             <div style="font-size:9px;letter-spacing:2px;
-              color:#94a3b8;position:absolute;top:88px;left:0;right:0;text-align:center;">PROGRESS</div>
+              color:#94a3b8;position:absolute;top:88px;left:0;right:0;text-align:center;">${esc(progressLabel)}</div>
           </div>
         </div>
         <div style="flex:1;min-width:110px;">
@@ -339,8 +355,8 @@ const norm = x => String(x ?? '').toLowerCase()
 
       <div style="display:grid;
         grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
-        ${metric('Print time', time(printTimeSensor), 'mdi:timer-outline')}
-        ${metric('Remaining', time(remainingSensor), 'mdi:timer-sand')}
+        ${metric('Print time', printRelevant ? time(printTimeSensor) : 'Not printing', 'mdi:timer-outline')}
+        ${metric('Remaining', printRelevant ? time(remainingSensor) : '—', 'mdi:timer-sand')}
         ${metric('Printer step', step, 'mdi:counter')}
       </div>
 
@@ -518,7 +534,10 @@ const norm = x => String(x ?? '').toLowerCase()
   const accent = mode === 'printing' ? '#22d3ee'
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
-  const progress = num(progressSensor);
+  const printRelevant = ['printing', 'paused'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink'].includes(mode);
+  const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
+  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -526,12 +545,13 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'automatic flash clean' ? 'Automatic flash clean'
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
-      'Calibration / self-check', 'Maintenance — inject ink before printing'].includes(status)
+      'Calibration / self-check', 'Maintenance — inject ink before printing',
+      'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : 'Waiting for status';
 
   const readings = [
-    statusSensor, stepSensor, progressSensor,
-    printTimeSensor, remainingSensor
+    statusSensor, stepSensor,
+    ...(printRelevant ? [progressSensor, printTimeSensor, remainingSensor] : [])
   ];
   const warnings = [];
   const inks = [
@@ -658,7 +678,7 @@ const norm = x => String(x ?? '').toLowerCase()
               ${progress === null ? '—' : Math.round(p) + '%'}
             </div>
             <div style="font-size:9px;letter-spacing:2px;
-              color:#94a3b8;position:absolute;top:88px;left:0;right:0;text-align:center;">PROGRESS</div>
+              color:#94a3b8;position:absolute;top:88px;left:0;right:0;text-align:center;">${esc(progressLabel)}</div>
           </div>
         </div>
         <div style="flex:1;min-width:110px;">
@@ -679,8 +699,8 @@ const norm = x => String(x ?? '').toLowerCase()
 
       <div style="display:grid;
         grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;">
-        ${metric('Print time', time(printTimeSensor), 'mdi:timer-outline')}
-        ${metric('Remaining', time(remainingSensor), 'mdi:timer-sand')}
+        ${metric('Print time', printRelevant ? time(printTimeSensor) : 'Not printing', 'mdi:timer-outline')}
+        ${metric('Remaining', printRelevant ? time(remainingSensor) : '—', 'mdi:timer-sand')}
         ${metric('Printer step', step, 'mdi:counter')}
       </div>
 

@@ -126,3 +126,36 @@ blocked.hass = {states,config:{time_zone:'America/Los_Angeles'}};
 blocked.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
 assert(blocked.shadowRoot.innerHTML.includes('65.5 mL'));
 console.log('Ink preference verified across card recreation, layouts, printers and blocked storage.');
+// Relevant warnings, activity progress, device details and print completion in both layouts.
+for (const layout of ['horizontal','vertical']) {
+  const view = new Card();
+  view.setConfig({device_id:prefix,layout});
+  for (const color of ['cyan','magenta','yellow','black','white','gloss']) entity(color+'_ink_expiration',100);
+  entity('waste_tank_expiration',100);
+  entity('printer_status','Idle');
+  entity('print_progress','unavailable');entity('time_remaining','unavailable');entity('print_time','unavailable');
+  entity('bed_type','Mini Flatbed');entity('surface_height',16.629375);entity('printer_light','On');
+  states['sensor.'+prefix+'_surface_height'].attributes.reading_received='2026-10-15T23:26:25+00:00';
+  view.hass={states,config:{time_zone:'America/Los_Angeles'}};
+  assert(!view.shadowRoot.innerHTML.includes('live readings unavailable or unmatched'));
+  assert(view.shadowRoot.innerHTML.includes('Not printing'));
+  assert(view.shadowRoot.innerHTML.includes('16.6 mm'));
+  assert(view.shadowRoot.innerHTML.includes('Last reported:'));
+  entity('cyan_ink_remaining','unavailable');view.hass={states};
+  assert(view.shadowRoot.innerHTML.includes('1 of 16 live readings unavailable or unmatched'));
+  entity('cyan_ink_remaining',65.5);
+  for (const [status,label] of [['Taking snapshot','SNAPSHOT PROGRESS'],['Injecting ink','INK INJECTION']]) {
+    entity('printer_status',status);entity('activity_progress',37);view.hass={states};
+    assert(view.shadowRoot.innerHTML.includes('37%'));
+    assert(view.shadowRoot.innerHTML.includes(label));
+  }
+  entity('printer_status','Printing');entity('print_progress',100);entity('time_remaining',17);view.hass={states};
+  assert(view.shadowRoot.innerHTML.includes('Creating'));
+  assert(!view.shadowRoot.innerHTML.includes('Print complete'));
+  entity('printer_status','Idle');view.hass={states};
+  assert(view.shadowRoot.innerHTML.includes('NO ACTIVE PRINT'));
+  entity('bed_type','<img src=x onerror=alert(1)>');view.hass={states};
+  assert(!view.shadowRoot.innerHTML.includes('<img src=x'));
+  assert(view.shadowRoot.innerHTML.includes('&lt;img'));
+}
+console.log('Stable monitoring verified: relevant warnings, activities, details and completion.');

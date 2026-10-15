@@ -1,3 +1,14 @@
+# 1.0.0 — first stable release
+
+- Add automatic moisturizing (5/9), ink injection (5/3), and post-moisturizing maintenance (13/0; inferred from the recorded sequence and Studio maintenance history).
+- Show snapshot and ink-injection progress separately from print progress, with independent freshness and operation-change clearing.
+- Add read-only bed type, measured surface height in mm, and printer light status; show per-reading report times in both dashboard layouts.
+- Map observed bed code 2 to Mini Flatbed; show unknown numeric bed codes without inventing accessory mappings.
+- Exclude inactive print readings from missing-reading warnings; continue reporting missing ink and waste readings.
+- Hide inactive print metrics and keep Printing status at 100% until the printer reports a state change. Clear old job readings on transitions and reject late progress outside printing/paused states.
+- Preserve read-only automatic dates, offline saved dates, existing entity identities, and remembered percent/mL selection.
+- Camera access and printer controls remain outside this release. Activity Lab remains a separate tool.
+
 # 0.2.7
 
 - Remember percent/mL selection per printer in browser storage across dashboard reloads and layout changes.

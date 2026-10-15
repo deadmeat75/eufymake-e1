@@ -24,6 +24,7 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         self.client = CloudClient(dict(entry.data), self._cloud_event)
         self.closed = False
         self.last_received = None
+        self.reading_received = {}
         self._remove_query = None
         self._dates_loaded = False
         self._reauth_started = False
@@ -61,8 +62,12 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
                 self.entry.async_start_reauth(self.hass)
         elif kind == "message" and self.model.connected:
             self.last_received = dt_util.now().isoformat()
-            if self.model.apply(payload, time.monotonic(), dt_util.now().date()):
+            received_at = time.monotonic()
+            if self.model.apply(payload, received_at, dt_util.now().date()):
                 self.store.async_delay_save(self.model.stored_data, 1)
+            for key, (_, stamp) in self.model.readings.items():
+                if stamp == received_at:
+                    self.reading_received[key] = self.last_received
         self.async_set_updated_data(self.model.snapshot(time.monotonic()))
 
     async def _async_query(self, now):

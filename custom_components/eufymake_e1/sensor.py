@@ -14,8 +14,10 @@ class EufyMakeSensor(EufyMakeEntity, SensorEntity):
         super().__init__(coordinator, key, "sensor")
         if key.endswith("_expiration_date"):
             self._attr_device_class = SensorDeviceClass.DATE
-        elif key.endswith("_ink_remaining") or key in ("waste_tank_remaining", "print_progress"):
+        elif key.endswith("_ink_remaining") or key in ("waste_tank_remaining", "print_progress", "activity_progress"):
             self._attr_native_unit_of_measurement = "%"
+        elif key == "surface_height":
+            self._attr_native_unit_of_measurement = "mm"
         elif key.endswith("_expiration"):
             self._attr_native_unit_of_measurement = "d"
         elif key in ("print_time", "time_remaining"):

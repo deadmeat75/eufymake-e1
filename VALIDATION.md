@@ -1,29 +1,21 @@
-# Validation — 0.2.0 native integration preview
+# Validation — 1.0.0
 
 ## Completed locally
 
-- 33 Python tests passed: credentials parse/validation, minimal retained account data, numeric units, complete ink/waste snapshots, unknown startup, zero and expired countdowns, manual dates under unavailable readings, fresh countdown updates, independent per-reading freshness, status mappings, missing-channel clearing, disconnect/reconnect behavior, restoring saved dates, encrypted frame round trip and corruption detection, batched frame processing, guided setup selection/error/duplicate/reauth behavior, network-thread handoff, immediate manual-date persistence, native sensor/date properties, and unload callback protection.
-- JavaScript syntax and rendering tests passed for both layouts at 0% and 100%, offline state, saved dates, renamed entity IDs, and balanced markup.
-- Local browser fixture preview inspected at 1280×720; the horizontal card fits inside the viewport. Corrected progress-icon overlap caused by carrying button-card offsets into a standalone element. Native ring content now uses explicit positions. Preview icons are placeholders, not Home Assistant's actual icon components.
-- JSON manifests/translations parse and Python files compile. No credential/profile files or Python caches are included in the archive.
+- 51 Python tests: protocol/checksums and command filtering, credentials/setup, state decoding, operation-specific progress and clearing, 100% with time remaining, late print packets, pause/resume, independent freshness, bed/height/light validation, persistent date handling and entity migration.
+- Dashboard tests for both layouts: relevant missing readings, separate activity progress, inactive metrics, details/report timestamps, HTML escaping, remembered ink units, unavailable data and existing rendering behavior.
+- Actual Activity Lab export replay checked snapshot progress/height, bed type, light status and completion transitions. The export deduplicates repeated status packets, so replay checks decoding and transitions; independent freshness is covered by synthetic timed tests. No uploaded records or credentials are committed.
+- JavaScript syntax, JSON parsing and whitespace checks.
 
-The boundary tests use small API doubles, not Home Assistant Core. No credentials were imported and no real Eufy cloud connection occurred.
+Tests use Home Assistant API doubles and do not replace a real installation test. Prior versions have been reported working on the maintainer's Home Assistant; 1.0.0's new code has not yet been installed there during this preparation.
 
-## Required before release
+## Installation checks
 
-1. Create the prepared deadmeat75/eufymake-e1 repository (owner and manifest URLs are set). Run hassfest and HACS repository validation.
-2. Load on Home Assistant Core 2026.10.0+ on a supported Linux runtime. Confirm all integration dependencies load and all 26 entities are created.
-3. Exercise Studio file selection, multiple-printer selection, certificate validation, invalid credentials and duplicate setup.
-4. Verify actual idle, printing, paused, progress and remaining time against Studio during a short print.
-5. Verify low ink, zero/negative expiration, unknown cartridge fields, manual dates and cartridge replacement behavior.
-6. Disconnect the printer/network; confirm live readings become unavailable while saved dates remain. Reconnect and verify no stale readings reappear before fresh messages.
-7. Restart/reload/remove the integration and restart Home Assistant. Confirm dates persist through restart, connections/timers stop on unload, sidebar panel is removed on unload, and existing dashboards/helpers remain intact.
-8. Test reauthentication with updated Studio exports. Confirm the selected printer cannot accidentally change during reauth.
-9. Inspect the automatic sidebar panel and existing-Lovelace card on desktop and mobile using actual Home Assistant icons/theme.
-10. Install/update from a GitHub custom repository using HACS, then test a release update.
+1. Update through HACS, restart Home Assistant, refresh the dashboard. Confirm the existing entry and sensors remain and four new sensors appear (30 entities total).
+2. Check both layouts, saved dates, remembered units, bed/light details and measured height/report time after a snapshot.
+3. Confirm idle/maintenance does not warn about absent print metrics, while missing ink/waste still warns.
+4. Check snapshot progress and normal printing through a status transition back to Idle. Do not assume 100% is completion.
+5. During the next naturally required ink injection, compare progress with Studio.
+6. Check disconnect/freshness behavior and saved-date persistence after restart.
 
-The archive is a development preview. A real Home Assistant/printer test and repository publication are still needed to fulfill the complete public-installation goal.
-
-## 0.2.1 regression fix
-
-Manual dates now persist as explicit overrides. A model serialization test and a coordinator restart test verify that subsequent zero countdowns cannot replace Yellow/Gloss dates. 33 Python tests pass. Real Home Assistant restart verification of this fix is pending.
+Camera, controls, arbitrary accessory mappings and fragmented protocol reassembly are not part of this release. The 13/0 maintenance description remains inferred from observed history.
