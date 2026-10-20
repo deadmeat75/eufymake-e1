@@ -1,18 +1,18 @@
-# Manual installation — not performed by this task
+# Monitor 1.1.0 installation and verification
 
 Full ready-to-use component folders are in these existing workspaces:
 
 - `/workspace/eufymake-e1/custom_components/eufymake_e1/`
 - `/workspace/private-tools/eufymake-activity-lab/custom_components/eufymake_activity_lab/`
 
-Complete update ZIPs are in the `review-downloads` directory on each authorized GitHub review branch, as well as `/workspace/artifacts/eufymake-telemetry/` locally. They contain full `custom_components/<domain>/` trees (including existing manifests, translations, brand assets and frontend files), not partial YAML. They contain no credentials, database files or recordings. They are review-branch development artifacts; no release has been made.
+For the monitor, use HACS or the `eufymake_e1.zip` asset attached to release v1.1.0. The Activity Lab bundle remains on its separate review branch and is not part of the monitor release. They contain full `custom_components/<domain>/` trees (including existing manifests, translations, brand assets and frontend files), not partial YAML. They contain no credentials, database files or recordings. The monitor package is version 1.1.0; the separate Activity Lab package is still review-only.
 
 When you choose to install manually:
 
 1. Make a Home Assistant backup and export Activity Lab JSON. Keep the previous component folders so you can restore them.
 2. Extract the appropriate ZIP on your computer. Copy its entire `custom_components/eufymake_e1` folder over `/config/custom_components/eufymake_e1` and, if updating Activity Lab too, its entire `custom_components/eufymake_activity_lab` folder over the matching path. Copy every new helper module as well as existing files. Do not delete or replace `/config/.storage` or `/config/eufymake_activity_lab`; those contain configuration/dates and the Lab database.
 3. Do not add a new integration entry, change credentials/MQTT settings, or replace your dashboard YAML. Existing entries and IDs are reused.
-4. Restart Home Assistant yourself when you choose to apply the new files, then refresh the dashboard browser fully. This task has not installed files in your Home Assistant or restarted it. An ordinary HACS download of the published release will still fetch the published code, not these local changes.
+4. Restart Home Assistant yourself when you choose to apply the new files, then refresh the dashboard browser fully. This task has not installed files in your Home Assistant or restarted it. Choose monitor v1.1.0 in HACS for these monitor changes. Updating the monitor does not update Activity Lab.
 
 ## Verify after installation
 

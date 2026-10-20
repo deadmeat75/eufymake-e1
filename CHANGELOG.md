@@ -1,3 +1,17 @@
+# 1.1.0 — verified accessories and telemetry
+
+- Show waste-tank fullness as a growing red bar while preserving the existing remaining-capacity sensor.
+- Warn to check the bed locking latch when no bed is detected; do not claim a directly measured unlocked latch.
+
+- Decode independent bed/accessory mappings for absent, Standard Flatbed, Mini Flatbed and rotary; preserve unknown codes, raw command-1118 reply and report times.
+- Handle asynchronous hardware removal/installation reports without presenting conflicting old hardware as current.
+- Add raw operating state, bed presence, maintenance operation, connection freshness and last-activity sensors while preserving existing entity IDs.
+- Associate flash-cleaning, deep-cleaning, moisturizing and ink-injection progress with the correct operation; keep it independent of printing.
+- Use command-1001 elapsed time, improve readable durations, reject old timed reports, and keep 100% distinct from completion.
+- Coalesce routine HA updates while keeping status/accessory changes immediate; retain privacy protections and offline expiration dates.
+- Show independent accessories and unknown state pairs in the existing layouts. No controls or camera access are added.
+- Activity Lab remains a separate review-only update and is not released here.
+
 # 1.0.0 — first stable release
 
 - Add automatic moisturizing (5/9), ink injection (5/3), and post-moisturizing maintenance (13/0; inferred from the recorded sequence and Studio maintenance history).

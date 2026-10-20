@@ -180,3 +180,27 @@ for (const layout of ['horizontal','vertical']) {
   assert(view.shadowRoot.innerHTML.includes('Unrecognized activity — state 8, step 2'));
 }
 console.log('Verified accessory, maintenance and Studio time displays passed in both layouts.');
+// Waste fullness must grow in red as remaining capacity falls; detection warns without inventing latch state.
+for (const layout of ['horizontal','vertical']) {
+  const view=new Card();view.setConfig({device_id:prefix,layout});
+  for (const [remaining,filled] of [[100,0],[75,25],[25,75],[0,100]]) {
+    entity('waste_tank_remaining',remaining);view.hass={states};
+    const html=view.shadowRoot.innerHTML;
+    assert(new RegExp('data-waste-fill[^>]*width:'+filled+'%;').test(html));
+    assert(/data-waste-fill[^>]*background:#fb7185;/.test(html));
+    assert(html.includes(filled.toFixed(1)+'%'));
+    assert(html.includes('Tank filled'));
+    assert(!html.includes('Capacity remaining'));
+    assert.strictEqual(states['sensor.'+prefix+'_waste_tank_remaining'].state,String(remaining));
+  }
+  entity('waste_tank_remaining','unavailable');view.hass={states};
+  assert(/data-waste-fill[^>]*width:0%;/.test(view.shadowRoot.innerHTML));
+  entity('bed_present',false);view.hass={states};
+  assert(view.shadowRoot.innerHTML.includes('locking latch is fully engaged'));
+  assert(view.shadowRoot.innerHTML.includes('cannot distinguish an absent bed'));
+  for (const value of [true,'unavailable','unknown']) {
+    entity('bed_present',value);view.hass={states};
+    assert(!view.shadowRoot.innerHTML.includes('locking latch is fully engaged'));
+  }
+}
+console.log('Waste fullness and conditional bed/latch warnings verified in both layouts.');

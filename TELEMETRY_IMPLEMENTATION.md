@@ -1,6 +1,6 @@
-# Observed E1 telemetry enhancement — local, unreleased work
+# Observed E1 telemetry enhancement — monitor 1.1.0
 
-Implementation was completed locally; pushing the prepared code to review branches was subsequently authorized. No merge, release, deployment, or Home Assistant restart was performed. Both existing projects are enhanced in place. Manifest versions remain unchanged. Frontend cache query strings carry a development suffix so replacement files can be loaded reliably.
+The monitor changes were authorized for release as 1.1.0 after review. Activity Lab remains on its separate review branch and is not released by this monitor update. Home Assistant is not deployed to or restarted. The manifest and frontend cache URL identify monitor version 1.1.0.
 
 ## Existing architecture and compatibility
 
@@ -70,4 +70,8 @@ These are standalone/boundary tests and export replay. A live Home Assistant ins
 
 ## Files and manual use
 
-See CHANGED_FILES.md for the exact file list and MANUAL_INSTALL.md for complete component bundles and verification steps. No partial dashboard YAML is needed.
+See CHANGED_FILES.md for the implementation file list and MANUAL_INSTALL.md for installation and verification steps. The GitHub release workflow tests and publishes only the monitor. No partial dashboard YAML is needed.
+
+## Additional monitor release clarifications
+
+Waste tank visualization is fullness, `100 - waste_tank_remaining`, with a red growing bar. The underlying existing remaining-capacity entity is unchanged. A fresh zero-detection report warns that the bed may be absent or its latch not engaged. Latch position cannot be decoded independently from these observations. This also limits any claim that a zero report proves physical accessory removal. No new automatic notifications or control actions are added. The separate Activity Lab review branch is not changed by this monitor release.

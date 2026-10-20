@@ -169,7 +169,7 @@ class PrinterState:
                 self.details[command] = dict(report)
                 new_identity = self.hardware.identity()
                 if new_identity != old_identity:
-                    self.last_activity = self.hardware.configuration()['effective'] + (' reported' if old_identity is None else ' detected')
+                    self.last_activity = ('Bed/accessory not detected — check installation and locking latch' if new_identity == 'none' else self.hardware.configuration()['effective'] + (' reported' if old_identity is None else ' detected'))
                     self.last_activity_time = event_time
         elif command == 1133:
             light = item.get("light")

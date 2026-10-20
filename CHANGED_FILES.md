@@ -1,6 +1,6 @@
 # Exact review-branch changed/added files
 
-Prepared for the authorized review branch only. No merge, release or Home Assistant installation was performed. The review-downloads directory contains the complete, checked component ZIP.
+Implementation file list from the review branch. The monitor is prepared for version 1.1.0; no Home Assistant installation was performed. Obsolete review-download bundles were removed from the release branch; a versioned ZIP is attached by the release workflow. Release preparation also updates CHANGELOG.md, hacs.json, the manifest, release notes and the GitHub release workflow.
 
 - `CHANGED_FILES.md`
 - `MANUAL_INSTALL.md`

@@ -43,6 +43,11 @@ class EufyMakeE1Card extends HTMLElement {
     const match = Object.values(hass.states).find(s => s.attributes?.eufymake_device_id);
     return {type:'custom:eufymake-e1-card', device_id:match?.attributes.eufymake_device_id || 'eufymake_e1_yourserial', layout:'horizontal'};
   }
+  bedWarning() {
+    const value = this.stateFor('bed_present');
+    if (!value || String(value.state).toLowerCase() !== 'false') return '';
+    return '<div role="status" style="margin-top:14px;padding:12px;border:1px solid #fbbf24;border-radius:12px;color:#fbbf24">Bed not detected — check that a bed is installed and its locking latch is fully engaged. This report cannot distinguish an absent bed from an unlocked latch.</div>';
+  }
   printerDetails() {
     const esc = value => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const valid = value => value && !['unknown','unavailable','none',''].includes(String(value.state).toLowerCase());
@@ -78,7 +83,7 @@ class EufyMakeE1Card extends HTMLElement {
       <span>Estimated ink:</span>
       <button type="button" data-ink-unit="percent" aria-pressed="${this._inkUnit !== 'ml'}">%</button>
       <button type="button" data-ink-unit="ml" aria-pressed="${this._inkUnit === 'ml'}">mL</button>
-    </div>${panel}${this.printerDetails()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
+    </div>${panel}${this.bedWarning()}${this.printerDetails()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
     this.shadowRoot.querySelector('.last-received').textContent = receivedDate && Number.isFinite(receivedDate.getTime())
       ? 'Last live data received: ' + receivedText : receivedText;
   }
@@ -271,11 +276,12 @@ const norm = x => String(x ?? '').toLowerCase()
   const wasteExpirySensor = find('waste_tank_expiration');
   readings.push(wasteSensor, wasteExpirySensor);
   const waste = num(wasteSensor);
+  const wasteFilled = waste === null ? null : 100 - cap(waste);
   const wasteExpiryInfo = expiration('waste_tank', wasteExpirySensor);
   const wasteExpiry = wasteExpiryInfo.remaining;
   const wasteLow = waste !== null && waste <= 20;
   const wasteSoon = wasteExpiry !== null && wasteExpiry <= 30;
-  if (wasteLow) warnings.push('Waste capacity low');
+  if (wasteLow) warnings.push('Waste tank nearly full');
   if (wasteSoon) warnings.push(wasteExpiry <= 0
     ? 'Waste tank expired'
     : 'Waste tank expiry in ' + Math.floor(wasteExpiry) + 'd');
@@ -381,19 +387,19 @@ const norm = x => String(x ?? '').toLowerCase()
           </div>
           <div style="font-size:20px;font-weight:750;
             color:${wasteLow ? '#fb7185' : '#f1f5f9'};">
-            ${pct(waste)}
+            ${pct(wasteFilled)}
           </div>
         </div>
         <div style="height:9px;background:#33415570;
           border-radius:8px;overflow:hidden;margin:11px 0 8px;">
-          <div style="height:100%;
-            width:${waste === null ? 0 : cap(waste)}%;
-            background:${wasteLow ? '#fb7185' : '#34d399'};
+          <div data-waste-fill style="height:100%;
+            width:${wasteFilled === null ? 0 : wasteFilled}%;
+            background:#fb7185;
             border-radius:8px;transition:width .6s ease;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;
           gap:8px;flex-wrap:wrap;font-size:10px;color:#94a3b8;">
-          <span>Capacity remaining</span>
+          <span>Tank filled</span>
           <span style="display:flex;gap:3px 6px;flex-wrap:wrap;
             color:${wasteSoon ? '#fbbf24' : '#94a3b8'};">
             <span>${days(wasteExpiry)}</span>
@@ -613,11 +619,12 @@ const norm = x => String(x ?? '').toLowerCase()
   const wasteExpirySensor = find('waste_tank_expiration');
   readings.push(wasteSensor, wasteExpirySensor);
   const waste = num(wasteSensor);
+  const wasteFilled = waste === null ? null : 100 - cap(waste);
   const wasteExpiryInfo = expiration('waste_tank', wasteExpirySensor);
   const wasteExpiry = wasteExpiryInfo.remaining;
   const wasteLow = waste !== null && waste <= 20;
   const wasteSoon = wasteExpiry !== null && wasteExpiry <= 30;
-  if (wasteLow) warnings.push('Waste capacity low');
+  if (wasteLow) warnings.push('Waste tank nearly full');
   if (wasteSoon) warnings.push(wasteExpiry <= 0
     ? 'Waste tank expired'
     : 'Waste tank expiry in ' + Math.floor(wasteExpiry) + 'd');
@@ -727,19 +734,19 @@ const norm = x => String(x ?? '').toLowerCase()
           </div>
           <div style="font-size:20px;font-weight:750;
             color:${wasteLow ? '#fb7185' : '#f1f5f9'};">
-            ${pct(waste)}
+            ${pct(wasteFilled)}
           </div>
         </div>
         <div style="height:9px;background:#33415570;
           border-radius:8px;overflow:hidden;margin:11px 0 8px;">
-          <div style="height:100%;
-            width:${waste === null ? 0 : cap(waste)}%;
-            background:${wasteLow ? '#fb7185' : '#34d399'};
+          <div data-waste-fill style="height:100%;
+            width:${wasteFilled === null ? 0 : wasteFilled}%;
+            background:#fb7185;
             border-radius:8px;transition:width .6s ease;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;
           gap:8px;flex-wrap:wrap;font-size:10px;color:#94a3b8;">
-          <span>Capacity remaining</span>
+          <span>Tank filled</span>
           <span style="display:flex;gap:3px 6px;flex-wrap:wrap;
             color:${wasteSoon ? '#fbbf24' : '#94a3b8'};">
             <span>${days(wasteExpiry)}</span>

@@ -1,10 +1,10 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Stable release 1.0.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Stable release 1.1.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
-Local unreleased telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md), with [manual installation instructions](MANUAL_INSTALL.md). They are on an authorized review branch, not merged, released, or deployed.
+The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md). Update the monitor through HACS; the separate Activity Lab update remains review-only.
 
 ## Features
 
@@ -329,3 +329,9 @@ The standalone tests do not require printer credentials or a running Home Assist
 The wire protocol derives from [masto/eufy-ink](https://github.com/masto/eufy-ink), released under the Unlicense. Its license and original protocol credits are preserved.
 
 New integration code is under the MIT license.
+
+## Waste tank and bed detection warnings
+
+The waste-tank card shows a red **Tank filled** bar: displayed fullness is `100 - waste_tank_remaining`. It grows as remaining capacity decreases. The existing remaining-capacity sensor and its entity ID stay unchanged for automations. Waste remains a percentage when the cartridge display is in mL. Unavailable readings display a dash, not an empty-tank claim.
+
+A fresh **bed_present = false** report produces an amber warning to check that the bed is installed and its locking latch is fully engaged. The protocol report does not distinguish an absent bed from an unlocked latch, so this is not a latch-position sensor. No automatic notifications or printer actions are sent. Unknown or stale detection does not claim that the latch is unlocked. The same ambiguity applies when interpreting raw zero-code history as a removal.
