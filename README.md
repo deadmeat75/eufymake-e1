@@ -4,11 +4,13 @@
 
 Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
+Local unreleased telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md), with [manual installation instructions](MANUAL_INSTALL.md). They are on an authorized review branch, not merged, released, or deployed.
+
 ## Features
 
 - Guided setup through Home Assistant.
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
-- 23 live sensors (plus seven saved-date sensors): six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, remaining time, activity progress, bed type, measured surface height, and printer lighting status.
+- 29 monitoring sensors (plus seven saved-date sensors): six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, remaining time, activity progress, bed type, measured surface height, printer lighting status, independent accessory type, bed presence, raw printer state, maintenance operation, connection freshness, and last activity.
 - Seven read-only expiration-date sensors, stored in Home Assistant and available while the printer is offline.
 - Printer-reported expiration timestamps, including expired ink; previously saved fallback dates persist when reliable printer dates are missing.
 - Automatic sidebar dashboard with horizontal and vertical layouts.
@@ -246,11 +248,11 @@ The dashboard shows when live printer data was last received, including while di
 
 ## Activity and printer details
 
-The dashboard distinguishes print progress from **snapshot progress** (command 1105) and **ink-injection progress** (1136). Percentages belong to the active operation and are cleared when it changes. A print can report 100% with time remaining: it remains Printing until the printer reports a different status. When not printing, print time reads Not printing and old print progress is hidden. Expected inactive print readings are excluded from the missing-readings warning; missing ink and waste readings still count.
+The dashboard distinguishes print progress from **snapshot progress** (command 1105) and **maintenance progress** (1136 for injection, 1148 for flash cleaning, and 1155 for deep cleaning/moisturizing). Percentages belong to the active operation and are cleared when it changes. A print can report 100% with time remaining: it remains Printing until the printer reports a different status. When not printing, print time reads Not printing and old print progress is hidden. Expected inactive print readings are excluded from the missing-readings warning; missing ink and waste readings still count.
 
 Read-only printer details show:
 
-- **Bed:** observed code `2` is displayed as Mini Flatbed. Other numeric codes are shown as unrecognized, rather than guessed. This is the printer-reported bed setting, not independent verification of physically installed hardware.
+- **Bed:** command 1118 codes `0/1/2/3` mean absent/Standard Flatbed/Mini Flatbed/Rotary. Command 1153 reports the accessory independently using `0/2/1/4` respectively. Other numeric codes remain Unknown (code), rather than guessed. This is the printer-reported bed setting, not independent verification of physically installed hardware.
 - **Measured surface height:** millimeters from snapshot measurements, displayed to one decimal place. This is a reported measurement, not a height control.
 - **Printer light:** reported On/Off status; no lighting control is added.
 
@@ -277,7 +279,7 @@ The card uses entity metadata, so renamed entity IDs continue to work. Narrow sc
 ## Validation and limitations
 
 - Installation and operation confirmed on the maintainer's Home Assistant instance.
-- All 51 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
+- All 62 Python development tests passed, covering credentials, encrypted frames, state decoding, date persistence, and setup/coordinator behavior using Home Assistant API doubles.
 - JavaScript rendering checks passed for both dashboard layouts, including renamed entities and unavailable readings.
 - hassfest and HACS repository validation remain pending.
 - Development tests do not establish compatibility with every Home Assistant installation or printer region.

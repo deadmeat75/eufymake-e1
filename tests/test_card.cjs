@@ -159,3 +159,24 @@ for (const layout of ['horizontal','vertical']) {
   assert(view.shadowRoot.innerHTML.includes('&lt;img'));
 }
 console.log('Stable monitoring verified: relevant warnings, activities, details and completion.');
+// Verified Studio units, operation-specific progress, unknown raw state and independent accessories.
+for (const layout of ['horizontal','vertical']) {
+  const view=new Card();view.setConfig({device_id:prefix,layout});
+  entity('printer_status','Printing');entity('printer_state',2);entity('printer_step',4);
+  entity('print_progress',17,'sensor',true);entity('time_remaining',678);entity('print_time',187);
+  entity('bed_type','Rotary');entity('accessory_type','Rotary');entity('bed_present',true);
+  view.hass={states,config:{time_zone:'America/Los_Angeles'}};
+  assert(view.shadowRoot.innerHTML.includes('17%'));
+  assert(view.shadowRoot.innerHTML.includes('11m 18s'));
+  assert(view.shadowRoot.innerHTML.includes('3m 7s'));
+  assert(view.shadowRoot.innerHTML.includes('Rotary'));
+  for (const status of ['Automatic flash clean','Automatic deep cleaning','Automatic moisturizing']) {
+    entity('printer_status',status);entity('activity_progress',37);view.hass={states};
+    assert(view.shadowRoot.innerHTML.includes('MAINTENANCE PROGRESS'));
+    assert(view.shadowRoot.innerHTML.includes('37%'));
+    assert(!view.shadowRoot.innerHTML.includes('17%'));
+  }
+  entity('printer_status','Unknown');entity('printer_state',8);entity('printer_step',2);view.hass={states};
+  assert(view.shadowRoot.innerHTML.includes('Unrecognized activity — state 8, step 2'));
+}
+console.log('Verified accessory, maintenance and Studio time displays passed in both layouts.');

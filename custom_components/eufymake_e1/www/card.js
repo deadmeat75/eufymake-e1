@@ -46,13 +46,13 @@ class EufyMakeE1Card extends HTMLElement {
   printerDetails() {
     const esc = value => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     const valid = value => value && !['unknown','unavailable','none',''].includes(String(value.state).toLowerCase());
-    const fields = [['bed_type','Bed'],['surface_height','Measured surface height'],['printer_light','Printer light']];
+    const fields = [['bed_type','Bed'],['accessory_type','Accessory'],['bed_present','Bed present'],['surface_height','Measured surface height'],['printer_light','Printer light'],['maintenance_operation','Maintenance'],['connection_status','Connection']];
     return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">${fields.map(([key,label]) => {
       const value = this.stateFor(key);
       const stamp = value?.attributes?.reading_received;
       const date = stamp ? new Date(stamp) : null;
-      const time = date && Number.isFinite(date.getTime()) ? date.toLocaleString(this._hass.locale?.language || 'en-US', {timeZone:this._hass.config?.time_zone || 'UTC'}) : null;
-      return `<div style="flex:1;min-width:150px;padding:12px;border:1px solid #334155;border-radius:12px"><small>${label}</small><div>${valid(value) ? esc(key === 'surface_height' ? Number(value.state).toFixed(1) + ' mm' : value.state) : 'Unavailable'}</div><small>${time ? 'Last reported: ' + esc(time) : 'Not reported since startup'}</small></div>`;
+      const time = date && Number.isFinite(date.getTime()) ? date.toLocaleString(this._hass.locale?.language || 'en-US', {timeZone:this._config.time_zone || 'America/Los_Angeles'}) : null;
+      return `<div style="flex:1;min-width:150px;padding:12px;border:1px solid #334155;border-radius:12px"><small>${label}</small><div>${valid(value) ? esc(key === 'surface_height' ? Number(value.state).toFixed(1) + ' mm' : key === 'bed_present' ? (String(value.state).toLowerCase() === 'true' ? 'Yes' : 'No') : value.state) : 'Unavailable'}</div><small>${time ? 'Last reported: ' + esc(time) : 'Not reported since startup'}</small>${value?.attributes?.configuration_status ? '<small style="display:block">' + esc(value.attributes.configuration_status) + '</small>' : ''}</div>`;
     }).join('')}</div>`;
   }
   getCardSize() { return this._config?.layout === 'vertical' ? 12 : 6; }
@@ -63,7 +63,7 @@ class EufyMakeE1Card extends HTMLElement {
     const receivedDate = received ? new Date(received) : null;
     const receivedText = receivedDate && Number.isFinite(receivedDate.getTime())
       ? receivedDate.toLocaleString(this._hass.locale?.language || 'en-US', {
-          timeZone: this._hass.config?.time_zone || 'UTC',
+          timeZone: this._config.time_zone || 'America/Los_Angeles',
           year:'numeric', month:'short', day:'numeric', hour:'numeric', minute:'2-digit', second:'2-digit'
         }) : 'No live data received since integration startup';
     this.shadowRoot.innerHTML = `<ha-card><style>
@@ -175,7 +175,7 @@ const norm = x => String(x ?? '').toLowerCase()
     n = Math.floor(n);
     const h = Math.floor(n / 3600);
     const m = Math.floor(n % 3600 / 60);
-    return h ? `${h}h ${m}m`
+    return h ? `${h}h ${m}m ${n % 60}s`
       : m ? `${m}m ${n % 60}s` : `${n}s`;
   };
   const icon = (name, color, size = 20) =>
@@ -187,15 +187,15 @@ const norm = x => String(x ?? '').toLowerCase()
   const progressSensor = find('print_progress');
   const printTimeSensor = find('print_time');
   const remainingSensor = find('time_remaining');
-  const status = valid(statusSensor) ? statusSensor.state : 'No status';
+  const status = valid(statusSensor) || (String(statusSensor?.state).toLowerCase() === 'unknown' && num(find('printer_state')) !== null) ? statusSensor.state : 'No status';
   const mode = status.toLowerCase();
   const accent = mode === 'printing' ? '#22d3ee'
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
-  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : 'NO ACTIVE PRINT';
+  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -205,7 +205,7 @@ const norm = x => String(x ?? '').toLowerCase()
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
       'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
-      ? status : 'Waiting for status';
+      ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor,
@@ -279,7 +279,7 @@ const norm = x => String(x ?? '').toLowerCase()
   if (wasteSoon) warnings.push(wasteExpiry <= 0
     ? 'Waste tank expired'
     : 'Waste tank expiry in ' + Math.floor(wasteExpiry) + 'd');
-  const missing = readings.filter(s => !valid(s)).length;
+  const missing = readings.filter(s => !valid(s) && !(s === statusSensor && mode === 'unknown' && num(find('printer_state')) !== null)).length;
 
   const metric = (label, value, symbol) => `
     <div style="background:#ffffff06;border:1px solid #334155;
@@ -517,7 +517,7 @@ const norm = x => String(x ?? '').toLowerCase()
     n = Math.floor(n);
     const h = Math.floor(n / 3600);
     const m = Math.floor(n % 3600 / 60);
-    return h ? `${h}h ${m}m`
+    return h ? `${h}h ${m}m ${n % 60}s`
       : m ? `${m}m ${n % 60}s` : `${n}s`;
   };
   const icon = (name, color, size = 20) =>
@@ -529,15 +529,15 @@ const norm = x => String(x ?? '').toLowerCase()
   const progressSensor = find('print_progress');
   const printTimeSensor = find('print_time');
   const remainingSensor = find('time_remaining');
-  const status = valid(statusSensor) ? statusSensor.state : 'No status';
+  const status = valid(statusSensor) || (String(statusSensor?.state).toLowerCase() === 'unknown' && num(find('printer_state')) !== null) ? statusSensor.state : 'No status';
   const mode = status.toLowerCase();
   const accent = mode === 'printing' ? '#22d3ee'
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
-  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : 'NO ACTIVE PRINT';
+  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -547,7 +547,7 @@ const norm = x => String(x ?? '').toLowerCase()
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
       'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
-      ? status : 'Waiting for status';
+      ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [
     statusSensor, stepSensor,
@@ -621,7 +621,7 @@ const norm = x => String(x ?? '').toLowerCase()
   if (wasteSoon) warnings.push(wasteExpiry <= 0
     ? 'Waste tank expired'
     : 'Waste tank expiry in ' + Math.floor(wasteExpiry) + 'd');
-  const missing = readings.filter(s => !valid(s)).length;
+  const missing = readings.filter(s => !valid(s) && !(s === statusSensor && mode === 'unknown' && num(find('printer_state')) !== null)).length;
 
   const metric = (label, value, symbol) => `
     <div style="background:#ffffff06;border:1px solid #334155;

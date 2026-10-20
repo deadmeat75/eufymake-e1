@@ -158,6 +158,20 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.reauth_calls),1)
         self.assertFalse(self.coordinator.model.connected)
 
+    async def test_telemetry_bursts_are_coalesced_but_state_and_hardware_are_immediate(self):
+        self.coordinator._last_publish = coordinator.time.monotonic() + 100
+        with patch.object(self.coordinator, 'async_set_updated_data', wraps=self.coordinator.async_set_updated_data) as publish:
+            for index in range(100):
+                self.coordinator._async_receive('message', {'commandType':1001,'progress':index*100,'time':100-index})
+            self.assertEqual(publish.call_count,0)
+            self.assertEqual(self.coordinator.data['print_progress'],99)
+            self.assertIsNotNone(self.coordinator._publish_handle)
+            self.coordinator._async_receive('message', {'commandType':1000,'status':{'state':0,'step':0}})
+            self.assertEqual(publish.call_count,1)
+            self.coordinator._async_receive('message', {'commandType':1153,'attType':4})
+            self.assertEqual(publish.call_count,2)
+            self.assertEqual(self.coordinator.data['accessory_type'],'Rotary')
+
     async def test_close_stops_transport_and_ignores_late_events(self):
         await self.coordinator.async_close()
         self.assertTrue(self.coordinator.client.stopped)

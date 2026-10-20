@@ -92,7 +92,7 @@ class CloudClient:
             payload = json.loads(decrypt(self.key, frame.ciphertext))
             items = payload if isinstance(payload, list) else [payload]
             for item in items:
-                if isinstance(item, dict) and item.get("commandType") in (1000, 1001, 1068, 1100, 1105, 1118, 1133, 1136):
+                if isinstance(item, dict) and item.get("commandType") in (1000, 1001, 1068, 1100, 1105, 1118, 1133, 1136, 1148, 1153, 1155):
                     self.on_event("message", item)
         except (ValueError, TypeError, IndexError, UnicodeError):
             # Unrecognized/fragmented/invalid frames never become entity readings.

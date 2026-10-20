@@ -1,5 +1,5 @@
 """Bridge cloud callbacks to Home Assistant's event loop and native storage."""
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import logging
 import time
 from homeassistant.core import callback
@@ -24,6 +24,8 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         self.client = CloudClient(dict(entry.data), self._cloud_event)
         self.closed = False
         self.last_received = None
+        self._publish_handle = None
+        self._last_publish = 0
         self.reading_received = {}
         self._remove_query = None
         self._dates_loaded = False
@@ -45,10 +47,10 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
 
     def _cloud_event(self, kind, payload):
         # Paho invokes this on its network thread; entity/storage changes happen on HA's loop.
-        self.hass.add_job(self._async_receive, kind, payload)
+        self.hass.add_job(self._async_receive, kind, payload, datetime.now(timezone.utc).isoformat())
 
     @callback
-    def _async_receive(self, kind, payload):
+    def _async_receive(self, kind, payload, observed_at=None):
         if self.closed:
             return
         if kind == "connected":
@@ -63,12 +65,28 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         elif kind == "message" and self.model.connected:
             self.last_received = dt_util.now().isoformat()
             received_at = time.monotonic()
-            if self.model.apply(payload, received_at, dt_util.now().date()):
+            if self.model.apply(payload, received_at, dt_util.now().date(), observed_at=observed_at):
                 self.store.async_delay_save(self.model.stored_data, 1)
             for key, (_, stamp) in self.model.readings.items():
                 if stamp == received_at:
                     self.reading_received[key] = self.last_received
-        self.async_set_updated_data(self.model.snapshot(time.monotonic()))
+        data = self.model.snapshot(time.monotonic())
+        important = kind != 'message' or any((self.data or {}).get(key) != data.get(key)
+            for key in ('printer_status','printer_step','bed_type','accessory_type','bed_present'))
+        if important or time.monotonic() - self._last_publish >= 1:
+            self._publish()
+        else:
+            self.data = data
+            if self._publish_handle is None:
+                self._publish_handle = self.hass.loop.call_later(1, self._publish)
+
+    def _publish(self):
+        if self._publish_handle:
+            self._publish_handle.cancel()
+            self._publish_handle = None
+        if not self.closed:
+            self._last_publish = time.monotonic()
+            self.async_set_updated_data(self.model.snapshot(self._last_publish))
 
     async def _async_query(self, now):
         if not self.closed:
@@ -81,6 +99,9 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         if self.closed:
             return
         self.closed = True
+        if self._publish_handle:
+            self._publish_handle.cancel()
+            self._publish_handle = None
         if self._remove_query:
             self._remove_query()
         await self.async_shutdown()

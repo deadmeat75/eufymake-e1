@@ -14,8 +14,8 @@ class ModelTests(unittest.TestCase):
 
     def test_native_keys_and_unknown_startup(self):
         state = self.model.snapshot(100)
-        self.assertEqual(len(state), 30)
-        self.assertTrue(all(value is None for value in state.values()))
+        self.assertEqual(len(state), 36)
+        self.assertTrue(all(value is None for key,value in state.items() if key != 'connection_status'))
 
     def test_six_ink_levels_and_waste(self):
         self.model.apply({'commandType':1100, 'ink':{'leftInk':[6000,7000,8000,100,1,0], 'distanceExpiration':[104,109,-23,97,157,-27]}, 'wasteInk':{'leftInk':[5000], 'distanceExpiration':229}}, 100, TODAY)

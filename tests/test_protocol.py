@@ -36,7 +36,7 @@ class ProtocolTests(unittest.TestCase):
         transport.stopping = threading.Event()
         transport.key = bytes(32)
         transport.on_event = Mock()
-        commands = [1105,1118,1133,1136,9999]
+        commands = [1105,1118,1133,1136,1148,1153,1155,9999]
         body = json.dumps([{'commandType':command} for command in commands]).encode()
         transport._on_message(None,None,SimpleNamespace(payload=build_app_frame(transport.key,body)))
         self.assertEqual([call.args[1]['commandType'] for call in transport.on_event.call_args_list],commands[:-1])

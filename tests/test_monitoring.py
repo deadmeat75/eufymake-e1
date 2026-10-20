@@ -39,8 +39,8 @@ class MonitoringTests(unittest.TestCase):
 
     def test_bed_height_light_and_unknown_accessories(self):
         self.assertEqual(self.apply({'commandType':1118,'plateType':2})['bed_type'],'Mini Flatbed')
-        self.assertEqual(self.apply({'commandType':1118,'plateType':99})['bed_type'],'Unrecognized bed (code 99)')
-        self.assertIsNone(self.apply({'commandType':1118,'plateType':True})['bed_type'])
+        self.assertEqual(self.apply({'commandType':1118,'plateType':99})['bed_type'],'Unknown (99)')
+        self.assertEqual(self.apply({'commandType':1118,'plateType':True})['bed_type'],'Unknown (99)')
         self.assertEqual(self.apply({'commandType':1105,'height':16.629375})['surface_height'],16.629375)
         for value in [-1,1001,'16.6',True]:
             self.assertIsNone(self.apply({'commandType':1105,'height':value})['surface_height'])
