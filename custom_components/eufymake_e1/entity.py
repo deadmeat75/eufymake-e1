@@ -8,6 +8,7 @@ from .telemetry import OPERATIONS
 class EufyMakeEntity(CoordinatorEntity):
     _attr_has_entity_name = True
     _attr_should_poll = False
+    _unrecorded_attributes = frozenset({"history"})
 
     def __init__(self, coordinator, key, entity_domain):
         super().__init__(coordinator)
@@ -50,6 +51,11 @@ class EufyMakeEntity(CoordinatorEntity):
             detail['activity_time'] = model.last_activity_time
         if self.key == 'connection_status':
             detail['last_telemetry_utc'] = model.last_telemetry
+            detail['history'] = model.insights.public()
+            options = getattr(self.coordinator.entry, 'options', {})
+            detail['low_ink_thresholds'] = {key: options.get('low_ink_' + key, 10) for key in ('cyan','magenta','yellow','black','white','gloss')}
+            detail['low_ink_unit'] = options.get('low_ink_unit', 'percent')
+            detail['low_ink_threshold_source'] = 'Integration setting; native Eufy threshold unverified'
         return {**detail, "eufymake_device_id": self.coordinator.device_id, "eufymake_key": self.key,
                 "last_received": self.coordinator.last_received,
                 "reading_received": self.coordinator.reading_received.get(self.key) or detail.get("time") or

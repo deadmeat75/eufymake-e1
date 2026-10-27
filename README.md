@@ -1,10 +1,19 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Stable release 1.1.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Stable release 1.2.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
-Tested and working on the maintainer's Home Assistant installation. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
+Earlier releases have been reported working on the maintainer's Home Assistant installation. This update has standalone tests; it has not yet been installed on a live printer. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
-The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md). Update the monitor through HACS; the separate Activity Lab update remains review-only.
+The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md). Monitor 1.2.0 and Activity Lab 0.4.0 are separate numbered releases available through HACS once its repository data refreshes. See [NEXT_RELEASE.md](NEXT_RELEASE.md) for scope, validation and upgrade checks.
+
+- Rename Ink Reserves to Ink Supply; show waste fill in green/yellow/red at 60% and 80% boundaries.
+- Clarify bed detection and locking-latch guidance. Show known dimensions in mm and inches.
+- Explain missing readings and stale telemetry; copy unknown operating codes and show estimated print finish time.
+- Preserve last completed print metrics after Idle; add bounded print, connection, maintenance and ink-supply history.
+- Add optional local Home Assistant notifications (off by default) and configurable per-color low-ink thresholds.
+- Detect supported cartridge identity changes privately. Show conservative inventory-based usage estimates, with explicit missing-data limits, and unit-unverified printer quantities.
+- Preserve existing entity IDs, configuration, automatic dates, MQTT authentication and dashboards.
+
 
 ## Features
 
@@ -334,4 +343,4 @@ New integration code is under the MIT license.
 
 The waste-tank card shows a red **Tank filled** bar: displayed fullness is `100 - waste_tank_remaining`. It grows as remaining capacity decreases. The existing remaining-capacity sensor and its entity ID stay unchanged for automations. Waste remains a percentage when the cartridge display is in mL. Unavailable readings display a dash, not an empty-tank claim.
 
-A fresh **bed_present = false** report produces an amber warning to check that the bed is installed and its locking latch is fully engaged. The protocol report does not distinguish an absent bed from an unlocked latch, so this is not a latch-position sensor. No automatic notifications or printer actions are sent. Unknown or stale detection does not claim that the latch is unlocked. The same ambiguity applies when interpreting raw zero-code history as a removal.
+A fresh **bed_present = false** report produces this warning: “Bed not detected. Make sure a bed is installed and its locking latch is fully closed.” There is no independent latch-position sensor. Unknown or stale detection does not claim an unlocked latch. Notifications are optional and off by default; no printer actions are sent.

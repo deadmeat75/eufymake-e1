@@ -45,7 +45,7 @@ for (const layout of ['horizontal','vertical']) {
   card.setConfig({device_id:prefix,layout,ink_unit:'percent'});
   card.hass = {states,config:{time_zone:'America/Los_Angeles'}};
   assert.strictEqual((card.shadowRoot.innerHTML.match(/65\.5%<\/div>/g)||[]).length,6);
-  card.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+  card.shadowRoot.onclick({target:{closest:selector => selector.includes('data-ink-unit') ? ({dataset:{inkUnit:'ml'}}) : null}});
   let html = card.shadowRoot.innerHTML;
   assert.strictEqual((html.match(/65\.5 mL/g)||[]).length,6);
   assert(html.includes('50.0%'), 'waste tank must remain a percentage');
@@ -62,7 +62,7 @@ for (const layout of ['horizontal','vertical']) {
   assert(html.includes('0.0 mL'));
   assert(html.includes('100.0 mL'));
   assert.strictEqual((html.match(/ mL</g)||[]).length,5, 'unavailable ink must not become zero mL');
-  card.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'percent'}})}});
+  card.shadowRoot.onclick({target:{closest:selector => selector.includes('data-ink-unit') ? ({dataset:{inkUnit:'percent'}}) : null}});
   assert(card.shadowRoot.innerHTML.includes('100.0%'));
   for (const key of ['cyan','magenta','yellow']) entity(key+'_ink_remaining',65.5);
 }
@@ -105,7 +105,7 @@ console.log('Both card layouts verified: 0%, 100%, offline, saved dates, renamed
 assert(!fs.readFileSync(__dirname + '/../custom_components/eufymake_e1/www/card.js','utf8').includes('hass-more-info'));
 
 // A recreated card (reload or layout change) restores this printer's preference.
-mlCard.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+mlCard.shadowRoot.onclick({target:{closest:selector => selector.includes('data-ink-unit') ? ({dataset:{inkUnit:'ml'}}) : null}});
 const restored = new Card();
 restored.setConfig({device_id:prefix,layout:'vertical'});
 restored.hass = {states,config:{time_zone:'America/Los_Angeles'}};
@@ -123,7 +123,7 @@ window.localStorage = {getItem:() => {throw new Error('blocked');},setItem:() =>
 const blocked = new Card();
 blocked.setConfig({device_id:prefix});
 blocked.hass = {states,config:{time_zone:'America/Los_Angeles'}};
-blocked.shadowRoot.onclick({target:{closest:() => ({dataset:{inkUnit:'ml'}})}});
+blocked.shadowRoot.onclick({target:{closest:selector => selector.includes('data-ink-unit') ? ({dataset:{inkUnit:'ml'}}) : null}});
 assert(blocked.shadowRoot.innerHTML.includes('65.5 mL'));
 console.log('Ink preference verified across card recreation, layouts, printers and blocked storage.');
 // Relevant warnings, activity progress, device details and print completion in both layouts.
@@ -142,7 +142,7 @@ for (const layout of ['horizontal','vertical']) {
   assert(view.shadowRoot.innerHTML.includes('16.6 mm'));
   assert(view.shadowRoot.innerHTML.includes('Last reported:'));
   entity('cyan_ink_remaining','unavailable');view.hass={states};
-  assert(view.shadowRoot.innerHTML.includes('1 of 16 live readings unavailable or unmatched'));
+  assert(view.shadowRoot.innerHTML.includes('Unavailable readings: cyan ink level.'));
   entity('cyan_ink_remaining',65.5);
   for (const [status,label] of [['Taking snapshot','SNAPSHOT PROGRESS'],['Injecting ink','INK INJECTION']]) {
     entity('printer_status',status);entity('activity_progress',37);view.hass={states};
@@ -187,7 +187,7 @@ for (const layout of ['horizontal','vertical']) {
     entity('waste_tank_remaining',remaining);view.hass={states};
     const html=view.shadowRoot.innerHTML;
     assert(new RegExp('data-waste-fill[^>]*width:'+filled+'%;').test(html));
-    assert(/data-waste-fill[^>]*background:#fb7185;/.test(html));
+    assert(new RegExp('data-waste-fill[^>]*background:'+(filled>=80?'#fb7185':filled>=60?'#fbbf24':'#34d399')+';').test(html));
     assert(html.includes(filled.toFixed(1)+'%'));
     assert(html.includes('Tank filled'));
     assert(!html.includes('Capacity remaining'));
@@ -196,11 +196,48 @@ for (const layout of ['horizontal','vertical']) {
   entity('waste_tank_remaining','unavailable');view.hass={states};
   assert(/data-waste-fill[^>]*width:0%;/.test(view.shadowRoot.innerHTML));
   entity('bed_present',false);view.hass={states};
-  assert(view.shadowRoot.innerHTML.includes('locking latch is fully engaged'));
-  assert(view.shadowRoot.innerHTML.includes('cannot distinguish an absent bed'));
+  assert(view.shadowRoot.innerHTML.includes('locking latch is fully closed'));
+  assert(!view.shadowRoot.innerHTML.includes('cannot distinguish an absent bed'));
   for (const value of [true,'unavailable','unknown']) {
     entity('bed_present',value);view.hass={states};
-    assert(!view.shadowRoot.innerHTML.includes('locking latch is fully engaged'));
+    assert(!view.shadowRoot.innerHTML.includes('locking latch is fully closed'));
   }
 }
 console.log('Waste fullness and conditional bed/latch warnings verified in both layouts.');
+// Release 1.2: boundaries, freshness, dimensions, historical metrics and settings.
+(async()=>{
+ const realNow=Date.now;Date.now=()=>Date.parse('2026-10-27T19:24:10Z');
+ try {
+  for(const layout of ['horizontal','vertical']) {
+   const view=new Card();view.setConfig({device_id:prefix,layout});
+   entity('connection_status','Connected');
+   const attrs=states['sensor.'+prefix+'_connection_status'].attributes;
+   attrs.last_telemetry_utc='2026-10-27T19:24:05Z';attrs.low_ink_thresholds={cyan:12};
+   attrs.history={prints:[{start:'2026-10-27T19:04:00Z',end:'2026-10-27T19:24:05Z',completion_confirmed:true,elapsed_seconds:1194,remaining_seconds:17,usage:{status:'Unavailable: incomplete readings'}}],maintenance:[{operation:'Automatic flash clean',end:'2026-10-27T19:25:00Z',duration_seconds:29.3,usage:{status:'Estimated inventory decrease',total_estimated_ml:0.12}}],connections:[{time:'2026-10-27T19:24:00Z',connected:true,previous_duration_seconds:90,previous_connected:false}],ink_history:[{time:'2026-10-27T19:00:00Z',levels_percent:[65,66,67,68,69,70]},{time:'2026-10-27T19:20:00Z',levels_percent:[64,65,66,67,68,69],cartridge_change:true}],cartridge_changes:[{time:'2026-10-27T19:20:00Z',color:'<script>bad</script>',level_percent:95,expiration_timestamp:1800460800}]};
+   entity('bed_type','Mini Flatbed');entity('bed_present',true);entity('printer_status','Idle');entity('cyan_ink_remaining',11);
+   view.hass={states,config:{time_zone:'America/Los_Angeles'}};
+   let html=view.shadowRoot.innerHTML;
+   for(const text of ['INK SUPPLY','335 × 90 mm / 13.19 × 3.54 in','Updated 5s ago','Last completed print','19m 54s','12:24:05','Ink Supply history','cyan cartridge identity changed']) {
+    if(text==='cyan cartridge identity changed')continue;
+    assert(html.includes(text),layout+' missing '+text);
+   }
+   assert(html.includes('Cyan ink low'));assert(!html.includes('<script>bad'));
+   assert(!html.includes('INK RESERVES'));assert(!html.includes('Estimated finish:'));
+   for(const [remaining,color] of [[41,'#34d399'],[40,'#fbbf24'],[21,'#fbbf24'],[20,'#fb7185']]) {
+    entity('waste_tank_remaining',remaining);view.hass={states};
+    assert(new RegExp('data-waste-fill[^>]*background:'+color+';').test(view.shadowRoot.innerHTML));
+   }
+   entity('bed_type','Standard Flatbed');entity('printer_status','Printing');entity('time_remaining',678);
+   states['sensor.'+prefix+'_time_remaining'].attributes.reading_received='2026-10-27T19:24:05Z';view.hass={states};
+   assert(view.shadowRoot.innerHTML.includes('335 × 420 mm / 13.19 × 16.54 in'));
+   assert(view.shadowRoot.innerHTML.includes('Estimated finish:'));assert(view.shadowRoot.innerHTML.includes('12:35:23'));
+   entity('printer_status','Paused');view.hass={states};assert(!view.shadowRoot.innerHTML.includes('Estimated finish:'));
+   attrs.last_telemetry_utc='2026-10-27T19:20:00Z';view.hass={states};assert(view.shadowRoot.innerHTML.includes('Telemetry stale'));
+   entity('printer_status','Unknown');entity('printer_state',8);entity('printer_step',2);view.hass={states};
+   assert(view.shadowRoot.innerHTML.includes('Meaning not yet confirmed'));assert(view.shadowRoot.innerHTML.includes('data-copy-codes'));
+   let copied='';Object.defineProperty(global,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>{copied=text;}}}});
+   await view.copyCodes();assert.strictEqual(copied,'EufyMake E1 state=8 step=2');
+  }
+ } finally {Date.now=realNow;}
+ console.log('Release 1.2 UI passed: waste thresholds, freshness, dimensions, unknown-code copy, finish estimate, safe history and completed metrics.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

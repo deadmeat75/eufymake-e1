@@ -3,6 +3,7 @@ class EufyMakeE1Card extends HTMLElement {
   constructor() {
     super(); this.attachShadow({mode:'open'});
     this.shadowRoot.addEventListener('click', event => {
+      if(event.target.closest?.('button[data-copy-codes]')) { this.copyCodes(); return; }
       const button = event.target.closest?.('button[data-ink-unit]');
       if (!button) return;
       if (!this._config || !['percent', 'ml'].includes(button.dataset.inkUnit)) return;
@@ -28,7 +29,7 @@ class EufyMakeE1Card extends HTMLElement {
   }
   unitStorageKey(deviceId) { return 'eufymake_e1:ink_unit:' + deviceId; }
   set hass(value) { this._hass = value; this.render(); }
-  connectedCallback() { this._timer = setInterval(() => this.render(), 60000); }
+  connectedCallback() { this._timer = setInterval(() => this.render(), 10000); }
   disconnectedCallback() { clearInterval(this._timer); }
   stateFor(key, domain='sensor') {
     const states = this._hass.states;
@@ -46,7 +47,7 @@ class EufyMakeE1Card extends HTMLElement {
   bedWarning() {
     const value = this.stateFor('bed_present');
     if (!value || String(value.state).toLowerCase() !== 'false') return '';
-    return '<div role="status" style="margin-top:14px;padding:12px;border:1px solid #fbbf24;border-radius:12px;color:#fbbf24">Bed not detected — check that a bed is installed and its locking latch is fully engaged. This report cannot distinguish an absent bed from an unlocked latch.</div>';
+    return '<div role="status" style="margin-top:14px;padding:12px;border:1px solid #fbbf24;border-radius:12px;color:#fbbf24">Bed not detected. Make sure a bed is installed and its locking latch is fully closed.</div>';
   }
   printerDetails() {
     const esc = value => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -54,12 +55,79 @@ class EufyMakeE1Card extends HTMLElement {
     const fields = [['bed_type','Bed'],['accessory_type','Accessory'],['bed_present','Bed present'],['surface_height','Measured surface height'],['printer_light','Printer light'],['maintenance_operation','Maintenance'],['connection_status','Connection']];
     return `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:14px">${fields.map(([key,label]) => {
       const value = this.stateFor(key);
+      const dimensions = key === 'bed_type' && valid(value) ? {'Mini Flatbed':'335 × 90 mm / 13.19 × 3.54 in','Standard Flatbed':'335 × 420 mm / 13.19 × 16.54 in'}[value.state] : null;
       const stamp = value?.attributes?.reading_received;
       const date = stamp ? new Date(stamp) : null;
       const time = date && Number.isFinite(date.getTime()) ? date.toLocaleString(this._hass.locale?.language || 'en-US', {timeZone:this._config.time_zone || 'America/Los_Angeles'}) : null;
-      return `<div style="flex:1;min-width:150px;padding:12px;border:1px solid #334155;border-radius:12px"><small>${label}</small><div>${valid(value) ? esc(key === 'surface_height' ? Number(value.state).toFixed(1) + ' mm' : key === 'bed_present' ? (String(value.state).toLowerCase() === 'true' ? 'Yes' : 'No') : value.state) : 'Unavailable'}</div><small>${time ? 'Last reported: ' + esc(time) : 'Not reported since startup'}</small>${value?.attributes?.configuration_status ? '<small style="display:block">' + esc(value.attributes.configuration_status) + '</small>' : ''}</div>`;
+      return `<div style="flex:1;min-width:150px;padding:12px;border:1px solid #334155;border-radius:12px"><small>${label}</small><div>${valid(value) ? esc(key === 'surface_height' ? Number(value.state).toFixed(1) + ' mm' : key === 'bed_present' ? (String(value.state).toLowerCase() === 'true' ? 'Yes' : 'No') : value.state) : 'Unavailable'}</div>${dimensions ? '<small>' + dimensions + '</small><br>' : ''}<small>${time ? 'Last reported: ' + esc(time) : 'Not reported since startup'}</small>${value?.attributes?.configuration_status ? '<small style="display:block">' + esc(value.attributes.configuration_status) + '</small>' : ''}</div>`;
     }).join('')}</div>`;
   }
+  escape(value) { return String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  formatSeconds(value) {
+    if(typeof value!=='number'||!Number.isFinite(value)||value<0)return 'Unavailable';
+    const n=Math.floor(value),h=Math.floor(n/3600),m=Math.floor(n%3600/60);
+    return (h?h+'h ':'')+(m||h?m+'m ':'')+(n%60)+'s';
+  }
+  localTime(value) {
+    const date=new Date(value);
+    return value && Number.isFinite(date.getTime())?date.toLocaleString(this._hass.locale?.language||'en-US',{timeZone:this._config.time_zone||'America/Los_Angeles',timeZoneName:'short'}):'Not reported';
+  }
+  lowThreshold(key) {
+    const threshold=this.stateFor('connection_status')?.attributes?.low_ink_thresholds?.[key];
+    return typeof threshold==='number'&&Number.isFinite(threshold)&&threshold>=0&&threshold<=100?threshold:10;
+  }
+  missingReadings() {
+    const esc=x=>this.escape(x), valid=s=>s&&!['unknown','unavailable','none',''].includes(String(s.state).toLowerCase());
+    const status=this.stateFor('printer_status'),active=['printing','paused'].includes(String(status?.state).toLowerCase());
+    const fields=[['printer_status','Printer status'],['printer_step','Printer step'],['waste_tank_remaining','Waste tank level'],['waste_tank_expiration','Waste tank countdown']];
+    for(const color of ['cyan','magenta','yellow','black','white','gloss'])fields.push([color+'_ink_remaining',color+' ink level'],[color+'_ink_expiration',color+' expiration countdown']);
+    if(active)fields.push(['print_progress','Print progress'],['print_time','Elapsed print time'],['time_remaining','Remaining print time']);
+    const missing=fields.filter(([key])=>!valid(this.stateFor(key))&&!(key==='printer_status'&&valid(this.stateFor('printer_state'))));
+    const expected=[];
+    if(!active)expected.push('Print progress, elapsed time and remaining time are not expected while no print is active.');
+    const expired=missing.filter(([key])=>key.endsWith('_ink_expiration')&&valid(this.stateFor(key.replace('_ink_expiration','_expiration_date'))));
+    if(expired.length)expected.push('Missing expiration countdowns can be expected for expired ink; saved printer-reported dates remain visible.');
+    return `<div style="margin-top:8px;color:#94a3b8;font-size:12px">${missing.length?'Unavailable readings: '+missing.map(([,name])=>esc(name)).join(', ')+'.':'Expected live readings are available.'}${expected.length?'<div>'+expected.map(esc).join(' ')+'</div>':''}</div>`;
+  }
+  freshness() {
+    const sensor=this.stateFor('connection_status'),stamp=sensor?.attributes?.last_telemetry_utc||this.stateFor('printer_status')?.attributes?.last_received;
+    const age=stamp?(Date.now()-new Date(stamp).getTime())/1000:NaN;
+    const disconnected=String(sensor?.state).toLowerCase()==='disconnected';
+    const stale=disconnected||String(sensor?.state).toLowerCase()==='stale'||!Number.isFinite(age)||age<0||age>120;
+    const text=Number.isFinite(age)&&age>=0?'Updated '+this.formatSeconds(age)+' ago':'No valid telemetry timestamp';
+    return `<p role="status" style="color:${stale?'#fbbf24':'#94a3b8'};font-size:12px">${this.escape(text)}${stale?' · '+(disconnected?'Disconnected':'Telemetry stale / unavailable'):''}</p>`;
+  }
+  unknownStatus() {
+    const state=this.stateFor('printer_state'),step=this.stateFor('printer_step');
+    if(String(this.stateFor('printer_status')?.state).toLowerCase()!=='unknown'||!state||!step)return '';
+    if(!Number.isFinite(Number(state.state))||!Number.isFinite(Number(step.state)))return '';
+    return `<p>State ${this.escape(state.state)} / step ${this.escape(step.state)} — Meaning not yet confirmed. <button type="button" data-copy-codes>Copy codes</button><span data-copy-feedback role="status"></span></p>`;
+  }
+  async copyCodes() {
+    const text='EufyMake E1 state='+this.stateFor('printer_state')?.state+' step='+this.stateFor('printer_step')?.state;
+    let copied=false;
+    try { if(typeof navigator!=='undefined'&&navigator.clipboard){await navigator.clipboard.writeText(text);copied=true;} } catch(_){}
+    if(!copied && typeof document!=='undefined') {
+      const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.top='0';this.shadowRoot.appendChild(area);area.select();
+      try {copied=document.execCommand('copy');}catch(_){}area.remove();
+    }
+    const feedback=this.shadowRoot.querySelector('[data-copy-feedback]');if(feedback)feedback.textContent=copied?' Copied':' Copy unavailable; select the displayed codes.';
+  }
+  historySection() {
+    const history=this.stateFor('connection_status')?.attributes?.history||{},esc=x=>this.escape(x);
+    const prints=history.prints||[],completed=prints.slice().reverse().find(p=>p.completion_confirmed),maintenance=history.maintenance||[];
+    const remaining=this.stateFor('time_remaining'),received=remaining?.attributes?.reading_received,seconds=Number(remaining?.state),stamp=Date.parse(received),age=Date.now()-stamp;
+    const eta=String(this.stateFor('printer_status')?.state).toLowerCase()==='printing'&&Number.isFinite(seconds)&&seconds>=0&&Number.isFinite(stamp)&&age>=0&&age<=120000;
+    const usage=record=>{
+      const u=record.usage||{},q=record.reported_quantities;
+      return `<small>${esc(u.status||'Usage unavailable')}${typeof u.total_estimated_ml==='number'?' · '+esc(u.total_estimated_ml.toFixed(2))+' mL estimated total':''}${q?'<br>Printer job quantities (units unverified): print '+esc(q.print_quantity??'—')+', pump '+esc(q.pump_quantity??'—')+', six-channel total '+esc(q.six_channel_total??'—'):''}</small>`;
+    };
+    const latest={};maintenance.forEach(m=>{latest[m.operation]=m;});
+    const changes=history.cartridge_changes||[],points=history.ink_history||[],colors=['#22d3ee','#f472b6','#facc15','#94a3b8','#f1f5f9','#a78bfa'];
+    const graph=points.length>1?`<svg viewBox="0 0 600 120" role="img" aria-label="Reported ink supply history, zero to 100 percent" style="width:100%;max-height:180px;background:#0f172a">${colors.map((color,i)=>'<polyline fill="none" stroke="'+color+'" stroke-width="2" points="'+points.map((p,j)=>{const first=Date.parse(points[0].time),span=Date.parse(points[points.length-1].time)-first;const x=span>0?(Date.parse(p.time)-first)/span*600:j/(points.length-1)*600;return Number.isFinite(p.levels_percent?.[i])?x.toFixed(1)+','+(120-Math.max(0,Math.min(100,p.levels_percent[i]))*1.2).toFixed(1):'';}).join(' ')+'"/>').join('')}${points.map((p,j)=>p.cartridge_change?'<line stroke="#fbbf24" stroke-dasharray="3 3" x1="'+(j/(points.length-1)*600)+'" x2="'+(j/(points.length-1)*600)+'" y1="0" y2="120"/>':'').join('')}</svg><small>${esc(this.localTime(points[0].time))} — ${esc(this.localTime(points[points.length-1].time))} · 0–100%, C/M/Y/K/W/G. Dashed markers indicate reported identity changes.</small>`:'<p>Collecting ink history…</p>';
+    return `<div style="margin-top:14px">${eta?'<p>Estimated finish: '+esc(this.localTime(new Date(stamp+seconds*1000).toISOString()))+'</p>':''}${completed?'<p><strong>Last completed print</strong><br>'+esc(this.localTime(completed.end))+' · Last reported elapsed: '+esc(this.formatSeconds(completed.elapsed_seconds))+'<br>'+usage(completed)+'</p>':''}<details><summary>Print, maintenance and connection history</summary><p>Observed maintenance durations require both transitions in one connection. Long post-maintenance states are excluded.</p>${Object.values(latest).map(m=>'<p>'+esc(m.operation)+' · '+esc(this.localTime(m.end))+' · '+esc(this.formatSeconds(m.duration_seconds))+'<br>'+usage(m)+'</p>').join('')}${prints.slice().reverse().map(p=>'<p>'+esc(p.completion_confirmed?'Print completed':'Print ended; completion unconfirmed')+' · '+esc(this.localTime(p.end))+' · '+esc(this.formatSeconds(p.elapsed_seconds))+'<br>'+usage(p)+'</p>').join('')}<h4>Connection history</h4>${(history.connections||[]).slice(-10).reverse().map(c=>'<p>'+esc(this.localTime(c.time))+' · '+(c.connected?'Connected':'Disconnected')+(typeof c.previous_duration_seconds==='number'?' · Previous '+(c.previous_connected?'connection':'outage')+': '+esc(this.formatSeconds(c.previous_duration_seconds)):'')+'</p>').join('')}</details><details><summary>Ink Supply history and cartridge changes</summary>${graph}<p>Inventory readings include printing and maintenance. Usage is estimated from fresh boundary readings for 100 mL cartridges; adjacent activities can overlap. Missing readings, observed inventory increases and reported identity changes invalidate estimates.</p>${changes.slice().reverse().map(c=>'<p>'+esc(c.color)+' cartridge identity changed · '+esc(this.localTime(c.time))+' · '+(typeof c.level_percent==='number'?esc(c.level_percent.toFixed(1))+'%':'Level unavailable')+' · Expiration '+(c.expiration_timestamp?esc(new Date(c.expiration_timestamp*1000).toISOString().slice(0,10)):'unavailable')+'</p>').join('')||'<p>No cartridge identity changes observed. Level changes alone do not establish replacement.</p>'}</details></div>`;
+  }
+
   getCardSize() { return this._config?.layout === 'vertical' ? 12 : 6; }
   render() {
     if (!this._hass || !this._config) return;
@@ -83,7 +151,7 @@ class EufyMakeE1Card extends HTMLElement {
       <span>Estimated ink:</span>
       <button type="button" data-ink-unit="percent" aria-pressed="${this._inkUnit !== 'ml'}">%</button>
       <button type="button" data-ink-unit="ml" aria-pressed="${this._inkUnit === 'ml'}">mL</button>
-    </div>${panel}${this.bedWarning()}${this.printerDetails()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
+    </div>${panel}${this.bedWarning()}${this.unknownStatus()}${this.printerDetails()}${this.freshness()}${this.historySection()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
     this.shadowRoot.querySelector('.last-received').textContent = receivedDate && Number.isFinite(receivedDate.getTime())
       ? 'Last live data received: ' + receivedText : receivedText;
   }
@@ -233,7 +301,7 @@ const norm = x => String(x ?? '').toLowerCase()
     const level = num(levelSensor);
     const expiryInfo = expiration(key, expirySensor);
     const expiry = expiryInfo.remaining;
-    const low = level !== null && level <= 20;
+    const low = level !== null && level <= this.lowThreshold(key);
     const soon = expiry !== null && expiry <= 30;
     if (low) warnings.push(label + ' ink low');
     if (soon) warnings.push(expiry <= 0
@@ -277,6 +345,7 @@ const norm = x => String(x ?? '').toLowerCase()
   readings.push(wasteSensor, wasteExpirySensor);
   const waste = num(wasteSensor);
   const wasteFilled = waste === null ? null : 100 - cap(waste);
+  const wasteColor = wasteFilled === null ? '#94a3b8' : wasteFilled >= 80 ? '#fb7185' : wasteFilled >= 60 ? '#fbbf24' : '#34d399';
   const wasteExpiryInfo = expiration('waste_tank', wasteExpirySensor);
   const wasteExpiry = wasteExpiryInfo.remaining;
   const wasteLow = waste !== null && waste <= 20;
@@ -369,7 +438,7 @@ const norm = x => String(x ?? '').toLowerCase()
       <div style="display:flex;align-items:center;gap:8px;
         margin:23px 0 12px;font-size:11px;font-weight:700;
         letter-spacing:1.8px;color:#cbd5e1;">
-        ${icon('mdi:water', '#22d3ee', 18)} INK RESERVES
+        ${icon('mdi:water', '#22d3ee', 18)} INK SUPPLY
       </div>
       <div style="display:grid;
         grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;">
@@ -394,7 +463,7 @@ const norm = x => String(x ?? '').toLowerCase()
           border-radius:8px;overflow:hidden;margin:11px 0 8px;">
           <div data-waste-fill style="height:100%;
             width:${wasteFilled === null ? 0 : wasteFilled}%;
-            background:#fb7185;
+            background:${wasteColor};
             border-radius:8px;transition:width .6s ease;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;
@@ -421,9 +490,7 @@ const norm = x => String(x ?? '').toLowerCase()
             : missing ? '#94a3b8' : '#34d399', 18)}
           <span>${esc(summary)}</span>
         </div>
-        ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
-          ${missing} of ${readings.length} live readings unavailable or unmatched.
-        </div>` : ''}
+        ${this.missingReadings()}
         <div style="margin-top:6px;color:#94a3b8;">
           Expiration dates are reported by the printer and retained while offline. This monitor does not change cartridge dates or bypass printing lockouts.
         </div>
@@ -576,7 +643,7 @@ const norm = x => String(x ?? '').toLowerCase()
     const level = num(levelSensor);
     const expiryInfo = expiration(key, expirySensor);
     const expiry = expiryInfo.remaining;
-    const low = level !== null && level <= 20;
+    const low = level !== null && level <= this.lowThreshold(key);
     const soon = expiry !== null && expiry <= 30;
     if (low) warnings.push(label + ' ink low');
     if (soon) warnings.push(expiry <= 0
@@ -620,6 +687,7 @@ const norm = x => String(x ?? '').toLowerCase()
   readings.push(wasteSensor, wasteExpirySensor);
   const waste = num(wasteSensor);
   const wasteFilled = waste === null ? null : 100 - cap(waste);
+  const wasteColor = wasteFilled === null ? '#94a3b8' : wasteFilled >= 80 ? '#fb7185' : wasteFilled >= 60 ? '#fbbf24' : '#34d399';
   const wasteExpiryInfo = expiration('waste_tank', wasteExpirySensor);
   const wasteExpiry = wasteExpiryInfo.remaining;
   const wasteLow = waste !== null && waste <= 20;
@@ -716,7 +784,7 @@ const norm = x => String(x ?? '').toLowerCase()
       <div style="display:flex;align-items:center;gap:8px;
         margin:0 0 12px;font-size:11px;font-weight:700;
         letter-spacing:1.8px;color:#cbd5e1;">
-        ${icon('mdi:water', '#22d3ee', 18)} INK RESERVES
+        ${icon('mdi:water', '#22d3ee', 18)} INK SUPPLY
       </div>
       <div style="display:grid;
         grid-template-columns:repeat(auto-fit,minmax(85px,1fr));gap:9px;">
@@ -741,7 +809,7 @@ const norm = x => String(x ?? '').toLowerCase()
           border-radius:8px;overflow:hidden;margin:11px 0 8px;">
           <div data-waste-fill style="height:100%;
             width:${wasteFilled === null ? 0 : wasteFilled}%;
-            background:#fb7185;
+            background:${wasteColor};
             border-radius:8px;transition:width .6s ease;"></div>
         </div>
         <div style="display:flex;justify-content:space-between;
@@ -770,9 +838,7 @@ const norm = x => String(x ?? '').toLowerCase()
             : missing ? '#94a3b8' : '#34d399', 18)}
           <span>${esc(summary)}</span>
         </div>
-        ${missing ? `<div style="margin-top:6px;color:#94a3b8;">
-          ${missing} of ${readings.length} live readings unavailable or unmatched.
-        </div>` : ''}
+        ${this.missingReadings()}
         <div style="margin-top:6px;color:#94a3b8;">
           Expiration dates are reported by the printer and retained while offline. This monitor does not change cartridge dates or bypass printing lockouts.
         </div>

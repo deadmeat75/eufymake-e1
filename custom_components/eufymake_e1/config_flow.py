@@ -30,6 +30,10 @@ def _validate_cloud(credentials):
 class EufyMakeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
+    @staticmethod
+    def async_get_options_flow(config_entry):
+        return EufyMakeOptionsFlow()
+
     def __init__(self):
         self._printers = []
 
@@ -89,3 +93,25 @@ class EufyMakeConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_reauth(self, entry_data):
         return await self.async_step_user()
+
+
+class EufyMakeOptionsFlow(config_entries.OptionsFlow):
+    """Local display thresholds and optional HA persistent notifications."""
+    async def async_step_init(self, user_input=None):
+        errors = {}
+        if user_input is not None:
+            thresholds = [user_input.get('low_ink_' + key, 10) for key in ('cyan','magenta','yellow','black','white','gloss')]
+            if user_input.get('low_ink_unit', 'percent') not in ('percent','ml') or any(type(v) not in (int,float) or not 0 <= v <= 100 for v in thresholds):
+                errors['base'] = 'invalid_threshold'
+            else:
+                return self.async_create_entry(title='', data=user_input)
+        defaults = self.config_entry.options
+        schema = {
+            vol.Optional('notify_completion', default=defaults.get('notify_completion', False)): bool,
+            vol.Optional('notify_waste', default=defaults.get('notify_waste', False)): bool,
+            vol.Optional('notify_connection', default=defaults.get('notify_connection', False)): bool,
+            vol.Optional('low_ink_unit', default=defaults.get('low_ink_unit','percent')): vol.In(['percent','ml']),
+        }
+        for key in ('cyan','magenta','yellow','black','white','gloss'):
+            schema[vol.Optional('low_ink_' + key, default=defaults.get('low_ink_' + key,10))] = vol.All(vol.Coerce(float), vol.Range(min=0,max=100))
+        return self.async_show_form(step_id='init',errors=errors,data_schema=vol.Schema(schema))

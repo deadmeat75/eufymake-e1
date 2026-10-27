@@ -30,5 +30,28 @@
       "already_configured": "This printer is already configured.",
       "reauth_successful": "Printer credentials updated."
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Alerts and low-ink thresholds",
+        "description": "Notifications appear locally in Home Assistant and are off by default. Connection alerts wait two minutes. Low-ink thresholds are integration settings; Eufy\u2019s native threshold is unverified. Each 100 mL cartridge has an estimated 1 mL per percentage point, so numeric thresholds are equivalent in either unit.",
+        "data": {
+          "notify_completion": "Notify when a print completes",
+          "notify_waste": "Notify when waste tank reaches 80% filled",
+          "notify_connection": "Notify after two minutes disconnected",
+          "low_ink_unit": "Low-ink threshold units",
+          "low_ink_cyan": "Cyan low-ink threshold",
+          "low_ink_magenta": "Magenta low-ink threshold",
+          "low_ink_yellow": "Yellow low-ink threshold",
+          "low_ink_black": "Black low-ink threshold",
+          "low_ink_white": "White low-ink threshold",
+          "low_ink_gloss": "Gloss low-ink threshold"
+        }
+      }
+    },
+    "error": {
+      "invalid_threshold": "Choose percent or mL and thresholds between 0 and 100."
+    }
   }
 }

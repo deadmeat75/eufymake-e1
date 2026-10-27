@@ -182,3 +182,23 @@ class CoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+class ReleaseCoordinatorTests(unittest.IsolatedAsyncioTestCase):
+    asyncSetUp = CoordinatorTests.asyncSetUp
+    asyncTearDown = CoordinatorTests.asyncTearDown
+    async def test_completion_history_survives_restart_without_changing_entities(self):
+        events=[(1000,{'status':{'state':2,'step':2}}),(1000,{'status':{'state':2,'step':4}}),(1001,{'progress':10000,'time':17,'totalTime':1194}),(1000,{'status':{'state':0,'step':0}}),(1001,{'progress':10000,'time':0,'totalTime':0})]
+        for index,(command,fields) in enumerate(events):
+            self.coordinator._async_receive('message',{'commandType':command,**fields},observed_at=f'2026-10-27T19:24:{index:02}+00:00')
+        history=self.coordinator.model.insights.public()
+        self.assertEqual(history['prints'][-1]['elapsed_seconds'],1194)
+        existing=sensor.EufyMakeSensor(self.coordinator,'print_time')
+        self.assertEqual(existing._attr_unique_id,self.coordinator.device_id+'_print_time')
+        connection=sensor.EufyMakeSensor(self.coordinator,'connection_status')
+        self.assertEqual(connection.extra_state_attributes['history'],history)
+        self.assertIn('history',connection._unrecorded_attributes)
+        await self.coordinator.async_close()
+        self.coordinator=coordinator.EufyMakeCoordinator(self.hass,self.entry)
+        await self.coordinator.async_start();await asyncio.sleep(0)
+        self.assertEqual(self.coordinator.model.insights.public()['prints'][-1]['elapsed_seconds'],1194)
+        self.assertIsNone(self.coordinator.model.insights.job)

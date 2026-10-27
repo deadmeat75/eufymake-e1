@@ -84,7 +84,7 @@ class FakeHass:
 
 
 module('homeassistant')
-module('homeassistant.config_entries', ConfigFlow=Flow, SOURCE_REAUTH='reauth')
+module('homeassistant.config_entries', ConfigFlow=Flow, OptionsFlow=Flow, SOURCE_REAUTH='reauth')
 module('homeassistant.components')
 module('homeassistant.components.file_upload',process_uploaded_file=lambda *args:None)
 module('homeassistant.helpers')

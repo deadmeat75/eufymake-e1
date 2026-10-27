@@ -9,7 +9,8 @@
     "file_upload",
     "frontend",
     "http",
-    "panel_custom"
+    "panel_custom",
+    "persistent_notification"
   ],
   "documentation": "https://github.com/deadmeat75/eufymake-e1",
   "integration_type": "device",
@@ -17,6 +18,6 @@
   "requirements": [
     "paho-mqtt==2.1.0"
   ],
-  "version": "1.1.0",
+  "version": "1.2.0",
   "issue_tracker": "https://github.com/deadmeat75/eufymake-e1/issues"
 }

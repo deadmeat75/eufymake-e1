@@ -1,27 +1,38 @@
-# Monitor 1.1.0 installation and verification
+# Monitor 1.2.0 / Activity Lab 0.4.0: installation and verification
 
-Full ready-to-use component folders are in these existing workspaces:
+Use the numbered GitHub releases through HACS. HACS can take time to refresh its repository data after publication. Do not remove and re-add your integrations. This task does not install anything in Home Assistant or restart it.
 
-- `/workspace/eufymake-e1/custom_components/eufymake_e1/`
-- `/workspace/private-tools/eufymake-activity-lab/custom_components/eufymake_activity_lab/`
+## When you choose to install
 
-For the monitor, use HACS or the `eufymake_e1.zip` asset attached to release v1.1.0. The Activity Lab bundle remains on its separate review branch and is not part of the monitor release. They contain full `custom_components/<domain>/` trees (including existing manifests, translations, brand assets and frontend files), not partial YAML. They contain no credentials, database files or recordings. The monitor package is version 1.1.0; the separate Activity Lab package is still review-only.
+1. Make a Home Assistant backup and download an Activity Lab JSON backup. Save copies of the existing component folders.
+2. Use HACS to update each existing integration separately. For a manual preview, extract its complete package and copy the entire matching `custom_components` folder over the existing folder:
+   - Monitor: `custom_components/eufymake_e1` → `/config/custom_components/eufymake_e1`
+   - Lab: `custom_components/eufymake_activity_lab` → `/config/custom_components/eufymake_activity_lab`
+   Include new `insights.py` in both components, and `notifications.py` in Monitor. Copy all translations/frontend files too; do not upload just one edited file.
+3. Preserve `/config/.storage` and `/config/eufymake_activity_lab`. These contain existing entries, credentials, saved dates and the Lab SQLite journal. There is no new dashboard YAML to paste, credential import to repeat, or MQTT configuration to change.
+4. Restart Home Assistant yourself when ready to load the new files. Fully refresh the browser afterward. Expected versions: Monitor 1.2.0 and Lab 0.4.0. If rolling back manually, restore the saved component folders; do not delete data stores.
 
-When you choose to install manually:
+## Monitor checks
 
-1. Make a Home Assistant backup and export Activity Lab JSON. Keep the previous component folders so you can restore them.
-2. Extract the appropriate ZIP on your computer. Copy its entire `custom_components/eufymake_e1` folder over `/config/custom_components/eufymake_e1` and, if updating Activity Lab too, its entire `custom_components/eufymake_activity_lab` folder over the matching path. Copy every new helper module as well as existing files. Do not delete or replace `/config/.storage` or `/config/eufymake_activity_lab`; those contain configuration/dates and the Lab database.
-3. Do not add a new integration entry, change credentials/MQTT settings, or replace your dashboard YAML. Existing entries and IDs are reused.
-4. Restart Home Assistant yourself when you choose to apply the new files, then refresh the dashboard browser fully. This task has not installed files in your Home Assistant or restarted it. Choose monitor v1.1.0 in HACS for these monitor changes. Updating the monitor does not update Activity Lab.
+- Open your existing dashboard in both layouts. Confirm Ink Supply, remembered percent/mL preference, six live cartridge levels, printer dates and existing automation/entity references.
+- Waste is tank **filled**, with a growing bar: green below 60%, yellow at 60–<80%, red at ≥80%. The native `waste_tank_remaining` sensor still means remaining capacity.
+- Confirm bed/accessory codes and known dimensions in mm/inches. If no bed is detected, check physical installation and the closed latch. No separately measured latch position is claimed. Do not move accessories while the printer is operating.
+- Read named missing readings and data age. Missing inactive-job metrics are expected. A stale/disconnected warning must not imply zero ink or an empty waste tank.
+- On the next ordinary print, compare progress and timing with Studio. Estimated finish is hidden when paused or stale. Reaching 100% does not mark completion until Idle. Last completed print should preserve the last elapsed time after current elapsed resets.
+- Expand print/maintenance/connection history and ink history. New Monitor history starts after installation; Activity Lab can backfill its retained records. Sampled charts and boundary usage are estimates, not exact accounting.
+- Configure optional notifications and thresholds under **Settings → Devices & services → EufyMake E1 Monitor → Configure** (or the integration entry’s options control). All alerts default off. They create local HA persistent notifications, not mobile push messages. Connection loss must last two minutes; waste alerts rearm after remaining capacity rises above 25%. Completion requires fresh evidence.
+- Choose per-color low-ink thresholds and percent/mL units. Numeric thresholds are equivalent for 100 mL cartridges. The default 10 is provisional; a native Eufy threshold has not been verified.
+- Cartridge changes appear only if the printer supplies usable identity data. Do not replace ink or run cleaning just to test this update. Current levels/expiration still follow the printer when swapping back to an old cartridge.
 
-## Verify after installation
+## Activity Lab checks
 
-- Confirm your original printer entry, ink/waste readings, dates, unit selection, panel layouts and existing automations still work.
-- In Settings → Devices & services → your existing E1 device, inspect existing Bed Type, Progress, Print Time, Time Remaining and Activity Progress sensors. New keys are accessory_type, bed_present, printer_state, maintenance_operation, connection_status and last_activity. Do not change entity IDs used by existing dashboards.
-- On a normal safe accessory swap, compare the separate bed/accessory raw codes, source commands, report times and consistency status. Rotary must be bed 3/accessory 4, Mini 2/1, Standard 1/2 and removal 0/0. A brief unavailable counterpart is expected while asynchronous reports catch up. Do not move/remove an accessory while the printer is operating.
-- Compare a normal print with Studio: progress 1700 → 17%, remaining 678 → 11m 18s, elapsed 187 → 3m 7s. 100% must remain Printing until the status changes. Idle must not show a completed job's old metrics as current printing.
-- During naturally occurring maintenance, check each progress source against its operation. No need to run cleaning solely for testing. 13/0 and 13/1 must not show active-cleaning progress or trigger an error/action.
-- In E1 Lab inspect installation meanings, raw Details/note, reply values, UTC JSON timestamps and Pacific display times. Reconnect should not create a false installation. User labels, notes, capture settings, limits and exports should still work.
-- If networking drops, live sensors become unavailable and connection status changes; saved expiration dates remain. Last report timestamps explain stale observations.
+- Confirm existing event IDs, notes, labels, capture settings, retention and raw fields remain. Backfilled summaries do not rewrite events. API actions stay administrator-only.
+- Bookmark a retained event, reload, and enable **Only bookmarks**. Bookmarks can still be removed by normal retention.
+- Select **Compare** on two records. Check changed numeric fields, missing/added fields, and array positions. Comparison operates on captured redacted fields, not full wire payloads.
+- Open **Named recording sessions and bookmarks**, choose **Start named session**, enter a name/observation, add ordinary observation markers, then end it with a final observation. Download that session’s JSON; only retained session events and session metadata should be included. A named session can span a Home Assistant restart, but active job/cleaning contexts do not span connection gaps.
+- **Load all retained records** fetches older events on demand. Navigate 300-row pages or filter them. Normal five-second refreshes fetch only the latest records.
+- Download a full JSON backup and CSV. The existing CSV column layout is preserved; full JSON additionally carries bookmark/session metadata. Times display in America/Los_Angeles with DST; exported event timestamps remain UTC.
 
-Rollback: restore the backed-up component files and restart Home Assistant yourself. The unchanged SQLite storage and saved-date formats remain usable. Do not remove the integration entry to roll back; removal can delete its saved data.
+## Limits
+
+The physical/app start distinction and job-quantity units are not verified. Source command 1140 remains experimental. No new printing, cleaning, bed movement, camera access or automatic machine actions are included. Physical HA/printer/iPad verification remains for installation; standalone tests do not prove deployment.

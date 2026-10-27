@@ -1,3 +1,7 @@
+# Current preparation
+
+See [NEXT_RELEASE.md](NEXT_RELEASE.md) for Monitor 1.2.0 / Activity Lab 0.4.0 behavior, evidence, limits and validation. The following sections document the previously published baseline; current waste colors, latch wording, optional notifications and history features supersede their older descriptions.
+
 # Observed E1 telemetry enhancement — monitor 1.1.0
 
 The monitor changes were authorized for release as 1.1.0 after review. Activity Lab remains on its separate review branch and is not released by this monitor update. Home Assistant is not deployed to or restarted. The manifest and frontend cache URL identify monitor version 1.1.0.

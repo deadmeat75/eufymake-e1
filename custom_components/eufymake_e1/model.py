@@ -2,6 +2,7 @@
 from datetime import date, datetime, timedelta, timezone
 import re
 from .telemetry import Hardware, OPERATIONS, STATUS, number, utc, transition
+from .insights import Insights
 from .const import CHANNELS, CONSUMABLES, MAX_AGE, SENSOR_KEYS
 
 
@@ -23,6 +24,7 @@ def device_id(serial):
 
 class PrinterState:
     def __init__(self, dates=None, max_age=MAX_AGE, manual_dates=None):
+        self.insights = Insights()
         self.readings = {}
         self.current_pair = None
         self.hardware = Hardware()
@@ -96,6 +98,7 @@ class PrinterState:
         self.raw[command] = {k: v for k, v in item.items() if k in ("commandType","plateType","attType","reply","progress","time","totalTime","light","height") and type(v) in (int, float, bool) and number(v) is not None}
         self.details[command] = {'source_command': command, 'time': event_time}
 
+        self.insights.observe(item, event_time)
         if command == 1100:
             ink = item.get("ink")
             ink = ink if isinstance(ink, dict) else {}

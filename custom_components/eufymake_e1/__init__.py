@@ -31,6 +31,7 @@ async def async_setup_entry(hass, entry):
         await coordinator.async_close()
         raise ConfigEntryNotReady("Could not connect to the Eufy printer service.") from None
     entry.runtime_data = coordinator
+    entry.async_on_unload(entry.add_update_listener(_options_updated))
     try:
         from .migration import remove_legacy_date_entities
         remove_legacy_date_entities(hass, entry, coordinator.device_id)
@@ -64,3 +65,8 @@ async def async_unload_entry(hass, entry):
 async def async_remove_entry(hass, entry):
     from homeassistant.helpers.storage import Store
     await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.dates").async_remove()
+    await Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.history").async_remove()
+
+
+async def _options_updated(hass, entry):
+    await hass.config_entries.async_reload(entry.entry_id)

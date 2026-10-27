@@ -10,6 +10,8 @@ from homeassistant.util import dt as dt_util
 from .cloud import CloudClient
 from .const import DOMAIN, INTERVAL
 from .model import PrinterState, device_id
+from .insights import Insights
+from .notifications import Notifications
 
 LOGGER = logging.getLogger(__name__)
 
@@ -21,6 +23,8 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         self.device_id = device_id(entry.data["serial"])
         self.model = PrinterState()
         self.store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.dates")
+        self.history_store = Store(hass, 1, f"{DOMAIN}.{entry.entry_id}.history")
+        self.notifications = Notifications(hass, entry)
         self.client = CloudClient(dict(entry.data), self._cloud_event)
         self.closed = False
         self.last_received = None
@@ -40,6 +44,7 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         else:
             # Preserve pre-fix dates; the old format did not record manual edits.
             self.model = PrinterState(stored, manual_dates=stored.keys())
+        self.model.insights = Insights(await self.history_store.async_load())
         self._dates_loaded = True
         await self.hass.async_add_executor_job(self.client.start)
         self._remove_query = async_track_time_interval(self.hass, self._async_query, timedelta(seconds=INTERVAL))
@@ -53,6 +58,13 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
     def _async_receive(self, kind, payload, observed_at=None):
         if self.closed:
             return
+        event_time = observed_at or datetime.now(timezone.utc).isoformat()
+        revision = self.model.insights.revision
+        previous_completed = len(self.model.insights.data["prints"])
+        previous_end = self.model.insights.data["prints"][-1]["end"] if previous_completed else None
+        if kind != "message":
+            self.model.insights.connection_event(kind == "connected", event_time)
+            self.notifications.connection(kind == "connected")
         if kind == "connected":
             self.model.connected = True
         elif kind == "disconnected":
@@ -70,7 +82,13 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
             for key, (_, stamp) in self.model.readings.items():
                 if stamp == received_at:
                     self.reading_received[key] = self.last_received
+        if self.model.insights.revision != revision:
+            self.history_store.async_delay_save(self.model.insights.saved, 5)
+        completed = self.model.insights.data["prints"]
+        if completed and completed[-1]["end"] != previous_end and completed[-1]["completion_confirmed"]:
+            self.notifications.completed(completed[-1])
         data = self.model.snapshot(time.monotonic())
+        self.notifications.waste(data.get("waste_tank_remaining"))
         important = kind != 'message' or any((self.data or {}).get(key) != data.get(key)
             for key in ('printer_status','printer_step','bed_type','accessory_type','bed_present'))
         if important or time.monotonic() - self._last_publish >= 1:
@@ -99,6 +117,7 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         if self.closed:
             return
         self.closed = True
+        self.notifications.close()
         if self._publish_handle:
             self._publish_handle.cancel()
             self._publish_handle = None
@@ -108,5 +127,6 @@ class EufyMakeCoordinator(DataUpdateCoordinator):
         try:
             if self._dates_loaded:
                 await self.store.async_save(self.model.stored_data())
+                await self.history_store.async_save(self.model.insights.saved())
         finally:
             await self.hass.async_add_executor_job(self.client.stop)
