@@ -1,3 +1,7 @@
+# November release update
+
+See RELEASE_NOTES_1.3.0.md for current counter, sound, progress, accounting and retention behavior. Prior release implementation notes follow for historical context.
+
 # Current preparation
 
 See [NEXT_RELEASE.md](NEXT_RELEASE.md) for Monitor 1.2.0 / Activity Lab 0.4.0 behavior, evidence, limits and validation. The following sections document the previously published baseline; current waste colors, latch wording, optional notifications and history features supersede their older descriptions.

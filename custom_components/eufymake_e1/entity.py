@@ -3,6 +3,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import DOMAIN
 from .telemetry import OPERATIONS
+from .observations import activity_command
 
 
 class EufyMakeEntity(CoordinatorEntity):
@@ -27,9 +28,11 @@ class EufyMakeEntity(CoordinatorEntity):
         # Let the bundled card bind correctly even after entity IDs are renamed.
         model = self.coordinator.model
         command = {'bed_type':1118, 'accessory_type':1153, 'activity_progress':
-                   1105 if model.current_pair == (8,0) else OPERATIONS.get(model.current_pair, (None,None))[1],
+                   activity_command(model.current_pair),
                    'printer_status':1000, 'printer_state':1000, 'printer_step':1000,
-                   'surface_height':1105, 'printer_light':1133, 'maintenance_operation':1000,
+                   'cleaning_remaining':1100, 'printer_sound':1045, 'printer_sound_level':1045,
+                   'firmware_download_progress':1047, 'preparation_total_time':1126,
+                   'estimated_print_time':1126, 'estimated_priming_time':1126, 'surface_height':1105, 'printer_light':1133, 'maintenance_operation':1000,
                    'print_progress':1001, 'time_remaining':1001, 'print_time':1001}.get(self.key)
         if self.key == 'bed_type' and '1118' not in model.hardware.reports:
             command = 1105
@@ -47,6 +50,8 @@ class EufyMakeEntity(CoordinatorEntity):
                           step=model.current_pair[1] if model.current_pair else None)
         if command in model.raw:
             detail['raw'] = model.raw[command]
+        if self.key == 'cleaning_remaining':
+            detail['interpretation'] = 'Raw printer-reported counter; units and remaining physical cleaning cycles unverified'
         if self.key == 'last_activity':
             detail['activity_time'] = model.last_activity_time
         if self.key == 'connection_status':

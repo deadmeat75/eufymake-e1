@@ -30,6 +30,11 @@ class Insights:
         self.data = {key: deepcopy(saved.get(key, []))[-limit:] for key, limit in (
             ('prints', 20), ('maintenance', 30), ('connections', 50),
             ('ink_history', 720), ('cartridge_changes', 30))}
+        for key in ('prints','maintenance'):
+            for record in self.data[key]:
+                usage = record.get('usage',{})
+                if usage.get('total_estimated_ml') == 0:
+                    usage['status'] = 'No measurable decrease in reported ink levels; this does not establish zero consumption'
         self.pair = None
         self.job = None
         self.operation = None
@@ -38,6 +43,7 @@ class Insights:
         self.connection = None
         self.connection_time = None
         self.revision = 0
+        self.quantity_reset = False
         self.last_signal = None
 
     def saved(self):
@@ -65,6 +71,7 @@ class Insights:
         self._append('connections', record, 50)
         self.connection, self.connection_time = connected, timestamp
         if not connected:
+            self.quantity_reset = False
             self.pair = None
             self.job = self.operation = self.ink = None
             self.last_signal = None
@@ -74,12 +81,17 @@ class Insights:
 
     def _usage(self, context, timestamp):
         start, end = context.get('ink_start'), self._baseline(timestamp)
-        if not start or not end or end['time'] < context['start'] or context.get('inventory_uncertain'):
-            return {'status': 'Unavailable: incomplete readings, inventory increase or cartridge change'}
+        reasons = list(context.get('usage_reasons', []))
+        if not start: reasons.append('Missing or stale starting ink reading')
+        if not end or (end and end['time'] < context['start']): reasons.append('Missing or stale ending ink reading')
+        if context.get('inventory_uncertain') and not context.get('usage_reasons'):
+            reasons.append('Incomplete earlier capture or unverified job boundary')
+        if reasons:
+            return {'status': 'Unavailable: ' + '; '.join(dict.fromkeys(reasons)), 'reasons': list(dict.fromkeys(reasons))}
         delta = [round((a-b)/100, 4) for a,b in zip(start['levels'], end['levels'])]
         if any(v < 0 for v in delta):
             return {'status': 'Unavailable: inventory increased'}
-        return {'status': 'Estimated inventory decrease; attribution may overlap adjacent activity',
+        return {'status': ('No measurable decrease in reported ink levels; this does not establish zero consumption' if not any(delta) else 'Estimated inventory decrease; attribution may overlap adjacent activity'),
                 'estimated_ml': dict(zip(COLORS, delta)), 'total_estimated_ml': round(sum(delta), 4),
                 'baseline_time': start['time'], 'end_reading_time': end['time']}
 
@@ -101,6 +113,8 @@ class Insights:
             pair = status['state'], status['step']
             if pair == self.pair:
                 return
+            if pair == (2,1):
+                self.quantity_reset = False
             if self.operation:
                 record = {**self.operation, 'end': timestamp, 'duration_seconds': round(seconds(self.operation['start'], timestamp), 1)}
                 record['usage'] = self._usage(self.operation, timestamp)
@@ -130,11 +144,26 @@ class Insights:
             for source, target in (('progress','progress'),('time','remaining_seconds'),('totalTime','elapsed_seconds')):
                 value = number(item.get(source))
                 if value is not None and value >= 0 and (source != 'progress' or value <= 10000):
-                    self.job[target] = value
+                    if source != 'totalTime' or value > 0 or not self.job.get('elapsed_seconds'):
+                        self.job[target] = value
+                    if source == 'totalTime' and value > 0:
+                        self.job.setdefault('elapsed_sources', {})['1001'] = {'seconds':value,'time':timestamp}
+                        self.job['elapsed_source_command'] = 1001
             progress = number(item.get('progress'))
             if progress is not None and 0 <= progress <= 10000:
                 self.job['last_progress_time'] = timestamp
-        elif command == 1068 and self.job:
+        elif command == 1068:
+            channels = values(item.get('ink_quantity'))
+            print_quantity, pump_quantity = number(item.get('print_quantity')), number(item.get('pump_quantity'))
+            if channels is not None and not any(channels) and print_quantity==0 and pump_quantity==0:
+                self.quantity_reset = True
+            if not self.job:
+                return
+            previous = self.data['prints'][-1].get('reported_quantities') if self.data['prints'] else None
+            unchanged_previous = previous and channels == previous.get('ink_quantity') and print_quantity == previous.get('print_quantity') and pump_quantity == previous.get('pump_quantity')
+            if unchanged_previous and not self.quantity_reset:
+                return
+
             quantities = {key: number(item.get(key)) for key in ('print_quantity','pump_quantity','pump_time','pump_number')}
             quantities = {key:value for key,value in quantities.items() if value is not None and value >= 0}
             channels = values(item.get('ink_quantity'))
@@ -144,8 +173,10 @@ class Insights:
             if quantities:
                 self.job['reported_quantities'] = {'time':timestamp,'units':'Unverified', **quantities}
             elapsed = number(item.get('totalTime'))
-            if self.job.get('elapsed_seconds') is None and elapsed is not None and elapsed >= 0:
+            if elapsed is not None and elapsed > 0:
+                self.job.setdefault('elapsed_sources', {})['1068'] = {'seconds':elapsed,'time':timestamp}
                 self.job['elapsed_seconds'] = elapsed
+                self.job['elapsed_source_command'] = 1068
         elif command == 1140:
             self.last_signal = timestamp
         elif command == 1100:
@@ -175,11 +206,45 @@ class Insights:
                         self.identities[key] = digest
                         self.revision += 1
                 break
+            reasons = []
+            if changed: reasons.append('Cartridge identity changed')
+            if levels is None: reasons.append('Missing or malformed ink reading')
+            if self.ink and seconds(self.ink['time'],timestamp)>120: reasons.append('Gap between ink readings exceeds 120 seconds')
+            if self.ink and levels and any(b>a for a,b in zip(self.ink['levels'],levels)): reasons.append('Reported ink inventory increased')
             for context in (self.job,self.operation):
-                if context and (changed or levels is None or (self.ink and (seconds(self.ink['time'],timestamp)>120 or any(b>a for a,b in zip(self.ink['levels'], levels or self.ink['levels']))))):
+                if context and reasons:
                     context['inventory_uncertain'] = True
+                    context['usage_reasons'] = list(dict.fromkeys(context.get('usage_reasons',[]) + reasons))
             if levels:
                 self.ink = {'time': timestamp, 'levels': levels}
                 last = self.data['ink_history'][-1] if self.data['ink_history'] else None
                 if changed or last is None or seconds(last['time'],timestamp)>=300:
                     self._append('ink_history', {'time':timestamp,'levels_percent':[v/100 for v in levels], 'cartridge_change':changed},720)
+
+    def repair_retained(self, events):
+        """Only repair from retained evidence; never replace original events or invent packets."""
+        changed = False
+        for record in self.data['prints']:
+            end = utc(record.get('end'))
+            if not end: continue
+            evidence = [e for e in events if utc(e.get('time')) == end and e.get('kind')=='status'
+                        and e.get('state')==0 and e.get('step')==0 and e.get('detail','').startswith('Print completed')]
+            if evidence and not record.get('completion_confirmed'):
+                record['completion_confirmed'] = True
+                record['completion_evidence'] = 'Original live status event; final progress packet was not retained'
+                changed = True
+            candidates = [e for e in events if e.get('command')==1068 and record['start']<=e.get('time','')<=record['end']
+                          and isinstance(e.get('fields'),dict) and number(e['fields'].get('totalTime')) is not None and e['fields']['totalTime']>0]
+            if candidates:
+                event = max(candidates,key=lambda e:e['time'])
+                if event['time']>=record.get('last_progress_time',record['start']) and record.get('elapsed_seconds')!=event['fields']['totalTime']:
+                    record['elapsed_seconds']=event['fields']['totalTime']
+                    record['elapsed_source_command']=1068
+                    record.setdefault('elapsed_sources',{})['1068']={'seconds':event['fields']['totalTime'],'time':event['time']}
+                    changed=True
+        for key in ('prints','maintenance'):
+            for record in self.data[key]:
+                usage=record.get('usage',{})
+                if usage.get('total_estimated_ml')==0:
+                    usage['status']='No measurable decrease in reported ink levels; this does not establish zero consumption'
+        if changed:self.revision += 1

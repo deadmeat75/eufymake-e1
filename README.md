@@ -1,10 +1,10 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Stable release 1.2.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Stable release 1.3.0.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Earlier releases have been reported working on the maintainer's Home Assistant installation. This update has standalone tests; it has not yet been installed on a live printer. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
-The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md). Monitor 1.2.0 and Activity Lab 0.4.0 are separate numbered releases available through HACS once its repository data refreshes. See [NEXT_RELEASE.md](NEXT_RELEASE.md) for scope, validation and upgrade checks.
+The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](TELEMETRY_IMPLEMENTATION.md). Monitor 1.3.0 and Activity Lab 0.5.0 are separate numbered releases available through HACS once its repository data refreshes. See [NEXT_RELEASE.md](NEXT_RELEASE.md) for scope, validation and upgrade checks.
 
 - Rename Ink Reserves to Ink Supply; show waste fill in green/yellow/red at 60% and 80% boundaries.
 - Clarify bed detection and locking-latch guidance. Show known dimensions in mm and inches.
@@ -15,11 +15,15 @@ The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](T
 - Preserve existing entity IDs, configuration, automatic dates, MQTT authentication and dashboards.
 
 
+## New in 1.3.0
+
+Cleaning-remaining raw counter, sound status, operation-specific progress, preparation estimates and history reliability fixes. See [release notes](RELEASE_NOTES_1.3.0.md) for units, evidence and limits.
+
 ## Features
 
 - Guided setup through Home Assistant.
 - Direct verified-TLS connection to Eufy's cloud MQTT service.
-- 29 monitoring sensors (plus seven saved-date sensors): six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, remaining time, activity progress, bed type, measured surface height, printer lighting status, independent accessory type, bed presence, raw printer state, maintenance operation, connection freshness, and last activity.
+- 36 monitoring sensors (plus seven saved-date sensors): six ink levels, six ink countdowns, waste capacity and countdown, printer status and step, progress, elapsed time, remaining time, activity progress, bed type, measured surface height, printer lighting status, independent accessory type, bed presence, raw printer state, maintenance operation, connection freshness, and last activity.
 - Seven read-only expiration-date sensors, stored in Home Assistant and available while the printer is offline.
 - Printer-reported expiration timestamps, including expired ink; previously saved fallback dates persist when reliable printer dates are missing.
 - Automatic sidebar dashboard with horizontal and vertical layouts.

@@ -1,4 +1,4 @@
-# Monitor 1.2.0 / Activity Lab 0.4.0: installation and verification
+# Monitor 1.3.0 / Activity Lab 0.5.0: installation and verification
 
 Use the numbered GitHub releases through HACS. HACS can take time to refresh its repository data after publication. Do not remove and re-add your integrations. This task does not install anything in Home Assistant or restart it.
 
@@ -10,7 +10,7 @@ Use the numbered GitHub releases through HACS. HACS can take time to refresh its
    - Lab: `custom_components/eufymake_activity_lab` → `/config/custom_components/eufymake_activity_lab`
    Include new `insights.py` in both components, and `notifications.py` in Monitor. Copy all translations/frontend files too; do not upload just one edited file.
 3. Preserve `/config/.storage` and `/config/eufymake_activity_lab`. These contain existing entries, credentials, saved dates and the Lab SQLite journal. There is no new dashboard YAML to paste, credential import to repeat, or MQTT configuration to change.
-4. Restart Home Assistant yourself when ready to load the new files. Fully refresh the browser afterward. Expected versions: Monitor 1.2.0 and Lab 0.4.0. If rolling back manually, restore the saved component folders; do not delete data stores.
+4. Restart Home Assistant yourself when ready to load the new files. Fully refresh the browser afterward. Expected versions: Monitor 1.3.0 and Lab 0.5.0. If rolling back manually, restore the saved component folders; do not delete data stores.
 
 ## Monitor checks
 
@@ -36,3 +36,8 @@ Use the numbered GitHub releases through HACS. HACS can take time to refresh its
 ## Limits
 
 The physical/app start distinction and job-quantity units are not verified. Source command 1140 remains experimental. No new printing, cleaning, bed movement, camera access or automatic machine actions are included. Physical HA/printer/iPad verification remains for installation; standalone tests do not prove deployment.
+
+## November observations update
+
+
+Back up Home Assistant and export Activity Lab JSON first. Update both existing integrations through HACS, then restart Home Assistant once and fully refresh the dashboard. Do not remove integration entries, reimport credentials, change MQTT settings or replace dashboard YAML. Existing data folders remain untouched. Check the new **Printer observations** section for the counter, sound and estimates. Relevant progress displays appear during their operations; no need to trigger cleaning or updates solely for testing. Settings may become unavailable when their reports are stale rather than being presented as current.

@@ -238,6 +238,16 @@ console.log('Waste fullness and conditional bed/latch warnings verified in both 
    let copied='';Object.defineProperty(global,'navigator',{configurable:true,value:{clipboard:{writeText:async text=>{copied=text;}}}});
    await view.copyCodes();assert.strictEqual(copied,'EufyMake E1 state=8 step=2');
   }
+  for(const layout of ['horizontal','vertical']) {
+   const view=new Card();view.setConfig({device_id:prefix,layout});
+   entity('cleaning_remaining',3843);entity('printer_sound','On');entity('printer_sound_level','High');entity('waste_tank_remaining',5);
+   for(const [status,heading] of [['Test printing (observed)','TEST PRINT PROGRESS'],['Updating firmware','FIRMWARE UPGRADE'],['Calibration / self-check','CALIBRATION PROGRESS'],['Transferring print file','FILE TRANSFER PROGRESS']]) {
+    entity('printer_status',status);entity('activity_progress',43);view.hass={states};
+    assert(view.shadowRoot.innerHTML.includes(heading));assert(view.shadowRoot.innerHTML.includes('43%'));assert(!view.shadowRoot.innerHTML.includes('Waiting for status'));
+   }
+   const html=view.shadowRoot.innerHTML;
+   for(const text of ['Cleaning remaining','3843','Sound volume','High','may plateau','raw counter'])assert(html.includes(text));
+  }
  } finally {Date.now=realNow;}
  console.log('Release 1.2 UI passed: waste thresholds, freshness, dimensions, unknown-code copy, finish estimate, safe history and completed metrics.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

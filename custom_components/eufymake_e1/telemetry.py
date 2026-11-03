@@ -10,7 +10,7 @@ OPERATIONS = {(5, 7): ('Automatic flash clean', 1148),
               (5, 10): ('Automatic deep cleaning', 1155),
               (5, 9): ('Automatic moisturizing', 1155),
               (5, 3): ('Injecting ink', 1136)}
-STATUS = {(0, 0): 'Idle', (2, 1): 'Transferring print file', (2, 2): 'Waiting for Start',
+STATUS = {(4, 1): 'Test printing (observed)', (0, 0): 'Idle', (2, 1): 'Transferring print file', (2, 2): 'Waiting for Start',
           (2, 3): 'Paused', (2, 4): 'Printing', (2, 6): 'Priming print head',
           (8, 0): 'Taking snapshot', (6, 1): 'Updating firmware', (9, 0): 'Calibration / self-check',
           (13, 0): 'Maintenance — ink injection required after moisturizing',

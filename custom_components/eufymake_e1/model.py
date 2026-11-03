@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 import re
 from .telemetry import Hardware, OPERATIONS, STATUS, number, utc, transition
 from .insights import Insights
+from .observations import observations
 from .const import CHANNELS, CONSUMABLES, MAX_AGE, SENSOR_KEYS
 
 
@@ -95,10 +96,14 @@ class PrinterState:
         self.sources[command] = clock
         event_time = event_time or datetime.now(timezone.utc).isoformat(timespec='microseconds')
         self.last_telemetry = max(self.last_telemetry or event_time, event_time)
-        self.raw[command] = {k: v for k, v in item.items() if k in ("commandType","plateType","attType","reply","progress","time","totalTime","light","height") and type(v) in (int, float, bool) and number(v) is not None}
+        self.raw[command] = {k: v for k, v in item.items() if k in ("beep","beep_level","download","upgrade","downloadFileProgress","result","print_time","pump_time","commandType","plateType","attType","reply","progress","time","totalTime","light","height") and type(v) in (int, float, bool) and number(v) is not None}
         self.details[command] = {'source_command': command, 'time': event_time}
 
         self.insights.observe(item, event_time)
+        state_clock = self.sources.get(1000)
+        if not (isinstance(clock,str) and isinstance(state_clock,str) and clock < state_clock):
+            for key,value in observations(item,self.current_pair).items():
+                self._set(key,value,now)
         if command == 1100:
             ink = item.get("ink")
             ink = ink if isinstance(ink, dict) else {}
@@ -125,6 +130,10 @@ class PrinterState:
                     pair = (state, step)
                     if pair != self.current_pair:
                         self.readings.pop("activity_progress", None)
+                        self.readings.pop("firmware_download_progress", None)
+                        if pair not in ((2,1),(2,2),(2,6),(2,4),(2,3)) or pair==(2,1):
+                            for key in ('preparation_total_time','estimated_print_time','estimated_priming_time'):
+                                self.readings.pop(key,None)
                         if pair not in ((2, 4), (2, 3)) or self.current_pair not in ((2, 4), (2, 3)):
                             for key in ("print_progress", "time_remaining", "print_time"):
                                 self.readings.pop(key, None)
@@ -192,6 +201,8 @@ class PrinterState:
         if self.current_pair is not None and self.current_pair not in ((2, 4), (2, 3)):
             for key in ("print_progress", "time_remaining", "print_time"):
                 data[key] = None
+        if self.current_pair != (6,1):
+            data['firmware_download_progress'] = None
         config = self.hardware.configuration()
         if config['bed_present'] is not None:
             newest = max(self.hardware.reports.values(), key=lambda r: r['time'])

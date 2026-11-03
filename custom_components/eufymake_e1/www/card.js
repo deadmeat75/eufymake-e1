@@ -120,7 +120,7 @@ class EufyMakeE1Card extends HTMLElement {
     const eta=String(this.stateFor('printer_status')?.state).toLowerCase()==='printing'&&Number.isFinite(seconds)&&seconds>=0&&Number.isFinite(stamp)&&age>=0&&age<=120000;
     const usage=record=>{
       const u=record.usage||{},q=record.reported_quantities;
-      return `<small>${esc(u.status||'Usage unavailable')}${typeof u.total_estimated_ml==='number'?' · '+esc(u.total_estimated_ml.toFixed(2))+' mL estimated total':''}${q?'<br>Printer job quantities (units unverified): print '+esc(q.print_quantity??'—')+', pump '+esc(q.pump_quantity??'—')+', six-channel total '+esc(q.six_channel_total??'—'):''}</small>`;
+      return `<small>${esc(u.status||'Usage unavailable')}${typeof u.total_estimated_ml==='number'&&u.total_estimated_ml>0?' · '+esc(u.total_estimated_ml.toFixed(2))+' mL estimated total':''}${q?'<br>Printer job quantities (units unverified): print '+esc(q.print_quantity??'—')+', pump '+esc(q.pump_quantity??'—')+', six-channel total '+esc(q.six_channel_total??'—'):''}</small>`;
     };
     const latest={};maintenance.forEach(m=>{latest[m.operation]=m;});
     const changes=history.cartridge_changes||[],points=history.ink_history||[],colors=['#22d3ee','#f472b6','#facc15','#94a3b8','#f1f5f9','#a78bfa'];
@@ -128,6 +128,12 @@ class EufyMakeE1Card extends HTMLElement {
     return `<div style="margin-top:14px">${eta?'<p>Estimated finish: '+esc(this.localTime(new Date(stamp+seconds*1000).toISOString()))+'</p>':''}${completed?'<p><strong>Last completed print</strong><br>'+esc(this.localTime(completed.end))+' · Last reported elapsed: '+esc(this.formatSeconds(completed.elapsed_seconds))+'<br>'+usage(completed)+'</p>':''}<details><summary>Print, maintenance and connection history</summary><p>Observed maintenance durations require both transitions in one connection. Long post-maintenance states are excluded.</p>${Object.values(latest).map(m=>'<p>'+esc(m.operation)+' · '+esc(this.localTime(m.end))+' · '+esc(this.formatSeconds(m.duration_seconds))+'<br>'+usage(m)+'</p>').join('')}${prints.slice().reverse().map(p=>'<p>'+esc(p.completion_confirmed?'Print completed':'Print ended; completion unconfirmed')+' · '+esc(this.localTime(p.end))+' · '+esc(this.formatSeconds(p.elapsed_seconds))+'<br>'+usage(p)+'</p>').join('')}<h4>Connection history</h4>${(history.connections||[]).slice(-10).reverse().map(c=>'<p>'+esc(this.localTime(c.time))+' · '+(c.connected?'Connected':'Disconnected')+(typeof c.previous_duration_seconds==='number'?' · Previous '+(c.previous_connected?'connection':'outage')+': '+esc(this.formatSeconds(c.previous_duration_seconds)):'')+'</p>').join('')}</details><details><summary>Ink Supply history and cartridge changes</summary>${graph}<p>Inventory readings include printing and maintenance. Usage is estimated from fresh boundary readings for 100 mL cartridges; adjacent activities can overlap. Missing readings, observed inventory increases and reported identity changes invalidate estimates.</p>${changes.slice().reverse().map(c=>'<p>'+esc(c.color)+' cartridge identity changed · '+esc(this.localTime(c.time))+' · '+(typeof c.level_percent==='number'?esc(c.level_percent.toFixed(1))+'%':'Level unavailable')+' · Expiration '+(c.expiration_timestamp?esc(new Date(c.expiration_timestamp*1000).toISOString().slice(0,10)):'unavailable')+'</p>').join('')||'<p>No cartridge identity changes observed. Level changes alone do not establish replacement.</p>'}</details></div>`;
   }
 
+  observationsSection() {
+    const esc=x=>this.escape(x),valid=s=>s&&!['unavailable','unknown','none',''].includes(String(s.state).toLowerCase());
+    const fields=[['cleaning_remaining','Cleaning remaining (printer-reported counter)'],['printer_sound','Printer sound'],['printer_sound_level','Sound volume'],['firmware_download_progress','Firmware download'],['preparation_total_time','Estimated total preparation + print time'],['estimated_print_time','Estimated printing time'],['estimated_priming_time','Estimated priming time']];
+    const waste=this.stateFor('waste_tank_remaining'),low=valid(waste)&&Number(waste.state)<=5;
+    return `<div style="margin-top:12px">${low?'<p role="status" style="color:#fbbf24">Waste tank reports '+esc((100-Number(waste.state)).toFixed(1))+'% filled. Low-end readings may plateau; exact physical fullness and time until full are not established.</p>':''}<details open><summary>Printer observations</summary>${fields.map(([key,label])=>{const state=this.stateFor(key);return '<p>'+label+': '+(valid(state)?esc(key.endsWith('_time')?this.formatSeconds(Number(state.state)):state.state)+(key==='firmware_download_progress'?'%':''):'Unavailable / not reported')+'</p>';}).join('')}<small>Cleaning remaining is a raw counter. Its units and relationship to remaining physical cleaning cycles are unverified. It is independent of the reported waste percentage.</small></details></div>`;
+  }
   getCardSize() { return this._config?.layout === 'vertical' ? 12 : 6; }
   render() {
     if (!this._hass || !this._config) return;
@@ -151,7 +157,7 @@ class EufyMakeE1Card extends HTMLElement {
       <span>Estimated ink:</span>
       <button type="button" data-ink-unit="percent" aria-pressed="${this._inkUnit !== 'ml'}">%</button>
       <button type="button" data-ink-unit="ml" aria-pressed="${this._inkUnit === 'ml'}">mL</button>
-    </div>${panel}${this.bedWarning()}${this.unknownStatus()}${this.printerDetails()}${this.freshness()}${this.historySection()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
+    </div>${panel}${this.bedWarning()}${this.unknownStatus()}${this.printerDetails()}${this.freshness()}${this.historySection()}${this.observationsSection()}<div class="last-received" style="margin-top:10px;font-size:11px;color:#94a3b8"></div></ha-card>`;
     this.shadowRoot.querySelector('.last-received').textContent = receivedDate && Number.isFinite(receivedDate.getTime())
       ? 'Last live data received: ' + receivedText : receivedText;
   }
@@ -266,9 +272,9 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
-  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
+  const progressLabel = mode === 'test printing (observed)' ? 'TEST PRINT PROGRESS' : mode === 'updating firmware' ? 'FIRMWARE UPGRADE' : mode === 'calibration / self-check' ? 'CALIBRATION PROGRESS' : mode === 'transferring print file' ? 'FILE TRANSFER PROGRESS' : printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -277,7 +283,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
-      'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
+      'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [
@@ -608,9 +614,9 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
-  const progressLabel = printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
+  const progressLabel = mode === 'test printing (observed)' ? 'TEST PRINT PROGRESS' : mode === 'updating firmware' ? 'FIRMWARE UPGRADE' : mode === 'calibration / self-check' ? 'CALIBRATION PROGRESS' : mode === 'transferring print file' ? 'FILE TRANSFER PROGRESS' : printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
   const activity = mode === 'printing' ? 'Creating'
     : mode === 'paused' ? 'Print paused'
@@ -619,7 +625,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
-      'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
+      'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [
