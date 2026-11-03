@@ -159,7 +159,7 @@ class PrinterState:
             value = numeric(item.get("totalTime"))
             if 1001 not in self.sources or "print_time" not in self.readings or now - self.readings["print_time"][1] > self.max_age:
                 self._set("print_time", value if value is not None and value >= 0 else None, now)
-        elif command in (1105, 1136, 1148, 1155):
+        elif command in (1102, 1105, 1136, 1148, 1155):
             expected_command = 1105 if self.current_pair == (8, 0) else OPERATIONS.get(self.current_pair, (None, None))[1]
             status_clock = self.sources.get(1000)
             current_enough = not (isinstance(clock, str) and isinstance(status_clock, str) and clock < status_clock)

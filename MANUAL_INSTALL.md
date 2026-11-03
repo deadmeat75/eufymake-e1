@@ -41,3 +41,8 @@ The physical/app start distinction and job-quantity units are not verified. Sour
 
 
 Back up Home Assistant and export Activity Lab JSON first. Update both existing integrations through HACS, then restart Home Assistant once and fully refresh the dashboard. Do not remove integration entries, reimport credentials, change MQTT settings or replace dashboard YAML. Existing data folders remain untouched. Check the new **Printer observations** section for the counter, sound and estimates. Relevant progress displays appear during their operations; no need to trigger cleaning or updates solely for testing. Settings may become unavailable when their reports are stale rather than being presented as current.
+
+## Patch 1.3.1
+
+
+Update both existing integrations through HACS, restart Home Assistant once after both downloads, and fully refresh the dashboard browser. No ZIP handling, entry removal, credential reimport or dashboard YAML replacement is required. The release process does not install files or restart Home Assistant. Physical HA/printer/iPad deployment and hassfest/HACS validation are not claimed by standalone tests.

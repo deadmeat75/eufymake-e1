@@ -120,7 +120,7 @@ class EufyMakeE1Card extends HTMLElement {
     const eta=String(this.stateFor('printer_status')?.state).toLowerCase()==='printing'&&Number.isFinite(seconds)&&seconds>=0&&Number.isFinite(stamp)&&age>=0&&age<=120000;
     const usage=record=>{
       const u=record.usage||{},q=record.reported_quantities;
-      return `<small>${esc(u.status||'Usage unavailable')}${typeof u.total_estimated_ml==='number'&&u.total_estimated_ml>0?' · '+esc(u.total_estimated_ml.toFixed(2))+' mL estimated total':''}${q?'<br>Printer job quantities (units unverified): print '+esc(q.print_quantity??'—')+', pump '+esc(q.pump_quantity??'—')+', six-channel total '+esc(q.six_channel_total??'—'):''}</small>`;
+      return `<small>${esc(u.status||'Usage unavailable')}${typeof u.total_estimated_ml==='number'&&u.total_estimated_ml>0?' · '+esc(u.total_estimated_ml.toFixed(2))+' mL estimated total':''}${q?'<br>Reported job ink total: '+(typeof q.six_channel_total==='number'?esc(q.six_channel_total.toFixed(2))+' mL':'Unavailable')+'<br>Per-channel mL (C/M/Y/K/W/G): '+(Array.isArray(q.ink_quantity)?q.ink_quantity.map(v=>typeof v==='number'?esc(v.toFixed(4)):'—').join(' / '):'Unavailable')+'<br>Separate raw quantities (units unverified): print '+esc(q.print_quantity??'—')+', pump '+esc(q.pump_quantity??'—'):''}</small>`;
     };
     const latest={};maintenance.forEach(m=>{latest[m.operation]=m;});
     const changes=history.cartridge_changes||[],points=history.ink_history||[],colors=['#22d3ee','#f472b6','#facc15','#94a3b8','#f1f5f9','#a78bfa'];
@@ -272,7 +272,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)', 'print-head cleaning (observed)'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
   const progressLabel = mode === 'test printing (observed)' ? 'TEST PRINT PROGRESS' : mode === 'updating firmware' ? 'FIRMWARE UPGRADE' : mode === 'calibration / self-check' ? 'CALIBRATION PROGRESS' : mode === 'transferring print file' ? 'FILE TRANSFER PROGRESS' : printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
@@ -283,7 +283,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
-      'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
+      'Print-head cleaning (observed)', 'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [
@@ -614,7 +614,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : mode === 'paused' ? '#fbbf24'
     : mode === 'idle' ? '#34d399' : '#94a3b8';
   const printRelevant = ['printing', 'paused'].includes(mode);
-  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)'].includes(mode);
+  const activityRelevant = ['taking snapshot', 'injecting ink', 'automatic flash clean', 'automatic deep cleaning', 'automatic moisturizing', 'updating firmware', 'calibration / self-check', 'transferring print file', 'test printing (observed)', 'print-head cleaning (observed)'].includes(mode);
   const progress = printRelevant ? num(progressSensor) : activityRelevant ? num(find('activity_progress')) : null;
   const progressLabel = mode === 'test printing (observed)' ? 'TEST PRINT PROGRESS' : mode === 'updating firmware' ? 'FIRMWARE UPGRADE' : mode === 'calibration / self-check' ? 'CALIBRATION PROGRESS' : mode === 'transferring print file' ? 'FILE TRANSFER PROGRESS' : printRelevant ? 'PRINT PROGRESS' : mode === 'taking snapshot' ? 'SNAPSHOT PROGRESS' : mode === 'injecting ink' ? 'INK INJECTION' : activityRelevant ? 'MAINTENANCE PROGRESS' : 'NO ACTIVE PRINT';
   const p = progress === null ? 0 : cap(progress);
@@ -625,7 +625,7 @@ const norm = x => String(x ?? '').toLowerCase()
     : ['Taking snapshot', 'Transferring print file', 'Waiting for Start',
       'Priming print head', 'Automatic deep cleaning', 'Updating firmware',
       'Calibration / self-check', 'Maintenance — inject ink before printing',
-      'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
+      'Print-head cleaning (observed)', 'Test printing (observed)', 'Injecting ink', 'Automatic moisturizing', 'Maintenance — ink injection required after moisturizing'].includes(status)
       ? status : mode === 'unknown' ? 'Unrecognized activity — state ' + (num(find('printer_state')) ?? '?') + ', step ' + (num(stepSensor) ?? '?') : 'Waiting for status';
 
   const readings = [

@@ -221,7 +221,7 @@ console.log('Waste fullness and conditional bed/latch warnings verified in both 
     if(text==='cyan cartridge identity changed')continue;
     assert(html.includes(text),layout+' missing '+text);
    }
-   assert(html.includes('Cyan ink low'));assert(!html.includes('<script>bad'));
+   assert(html.includes('Cyan ink low'));attrs.history.prints[0].reported_quantities={six_channel_total:1.436693216695,ink_quantity:[0.2,0.2,0.2,0.2,0.436693216695,0.2],print_quantity:0.22,pump_quantity:1.2};view.hass={states};assert(view.shadowRoot.innerHTML.includes('1.44 mL'));assert(view.shadowRoot.innerHTML.includes('Separate raw quantities (units unverified)'));assert(!html.includes('<script>bad'));
    assert(!html.includes('INK RESERVES'));assert(!html.includes('Estimated finish:'));
    for(const [remaining,color] of [[41,'#34d399'],[40,'#fbbf24'],[21,'#fbbf24'],[20,'#fb7185']]) {
     entity('waste_tank_remaining',remaining);view.hass={states};
@@ -241,7 +241,7 @@ console.log('Waste fullness and conditional bed/latch warnings verified in both 
   for(const layout of ['horizontal','vertical']) {
    const view=new Card();view.setConfig({device_id:prefix,layout});
    entity('cleaning_remaining',3843);entity('printer_sound','On');entity('printer_sound_level','High');entity('waste_tank_remaining',5);
-   for(const [status,heading] of [['Test printing (observed)','TEST PRINT PROGRESS'],['Updating firmware','FIRMWARE UPGRADE'],['Calibration / self-check','CALIBRATION PROGRESS'],['Transferring print file','FILE TRANSFER PROGRESS']]) {
+   for(const [status,heading] of [['Print-head cleaning (observed)','MAINTENANCE PROGRESS'],['Test printing (observed)','TEST PRINT PROGRESS'],['Updating firmware','FIRMWARE UPGRADE'],['Calibration / self-check','CALIBRATION PROGRESS'],['Transferring print file','FILE TRANSFER PROGRESS']]) {
     entity('printer_status',status);entity('activity_progress',43);view.hass={states};
     assert(view.shadowRoot.innerHTML.includes(heading));assert(view.shadowRoot.innerHTML.includes('43%'));assert(!view.shadowRoot.innerHTML.includes('Waiting for status'));
    }

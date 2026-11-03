@@ -10,6 +10,13 @@ COLORS = ('cyan', 'magenta', 'yellow', 'black', 'white', 'gloss')
 PRINT = ((2, 3), (2, 4))
 
 
+def quantity_units(quantities):
+    if isinstance(quantities, dict):
+        quantities['field_units'] = {'ink_quantity':'mL', 'six_channel_total':'mL',
+                                    'print_quantity':'Unverified', 'pump_quantity':'Unverified'}
+    return quantities
+
+
 def seconds(start, end):
     return max(0, (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds())
 
@@ -32,6 +39,7 @@ class Insights:
             ('ink_history', 720), ('cartridge_changes', 30))}
         for key in ('prints','maintenance'):
             for record in self.data[key]:
+                quantity_units(record.get('reported_quantities'))
                 usage = record.get('usage',{})
                 if usage.get('total_estimated_ml') == 0:
                     usage['status'] = 'No measurable decrease in reported ink levels; this does not establish zero consumption'
@@ -171,7 +179,7 @@ class Insights:
                 quantities['ink_quantity'] = channels
                 quantities['six_channel_total'] = number(sum(channels))
             if quantities:
-                self.job['reported_quantities'] = {'time':timestamp,'units':'Unverified', **quantities}
+                self.job['reported_quantities'] = quantity_units({'time':timestamp,'units':'Unverified', **quantities})
             elapsed = number(item.get('totalTime'))
             if elapsed is not None and elapsed > 0:
                 self.job.setdefault('elapsed_sources', {})['1068'] = {'seconds':elapsed,'time':timestamp}

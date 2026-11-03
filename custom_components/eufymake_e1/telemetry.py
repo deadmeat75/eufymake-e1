@@ -6,7 +6,7 @@ BEDS = {0: 'No bed detected', 1: 'Standard Flatbed', 2: 'Mini Flatbed', 3: 'Rota
 ACCESSORIES = {0: 'No accessory detected', 1: 'Mini Flatbed', 2: 'Standard Flatbed', 4: 'Rotary'}
 IDENTITIES = {1118: {0: 'none', 1: 'standard', 2: 'mini', 3: 'rotary'},
               1153: {0: 'none', 1: 'mini', 2: 'standard', 4: 'rotary'}}
-OPERATIONS = {(5, 7): ('Automatic flash clean', 1148),
+OPERATIONS = {(5, 1): ('Print-head cleaning (observed)', 1102), (5, 7): ('Automatic flash clean', 1148),
               (5, 10): ('Automatic deep cleaning', 1155),
               (5, 9): ('Automatic moisturizing', 1155),
               (5, 3): ('Injecting ink', 1136)}

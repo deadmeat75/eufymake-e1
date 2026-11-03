@@ -1,8 +1,9 @@
-# Validation for 1.3.0
+# Validation for 1.3.1
 
-- 84 Python tests pass.
-- Existing UI suites plus new counter, sound, progress and coverage cases pass.
-- Python/JSON parsing, JavaScript syntax, whitespace and release-version consistency checked.
-- Supplied exports used read-only for regression analysis; no private export is committed.
-- Live Home Assistant/printer, physical legacy iPad and hassfest/HACS checks not performed.
-- Publication is authorized. No Home Assistant installation or restart is performed.
+- 87 Python tests pass.
+- UI suites cover both existing layouts/panel interactions plus observed cleaning and mL formatting.
+- Numeric fixtures match four Studio totals; command 1102 is operation-scoped and cannot replace print progress.
+- Per-field metadata preserves the unverified status of separate print/pump quantities.
+- No new dependencies, credentials or data-store changes.
+- No live HA/printer/iPad testing or hassfest/HACS validation performed.
+- Publication authorized; no automatic HA installation or restart.
