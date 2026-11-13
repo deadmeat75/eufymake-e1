@@ -1,5 +1,12 @@
 # EufyMake E1 Monitor 1.3.1
 
+## Pending for the next release
+
+- Show **White ink recovery** for state 5/17 and report command-1188 progress through the existing activity progress sensor. The November 11 capture shows 1% through 100%, including 54% near the operator's marker.
+- Show **Check cartridge** for state 10/0. Controlled cyan, yellow, and cleaning cartridge tests reproduced the warning on removal and cleared it on reinsertion. Activity Lab masks the underlying error codes.
+- Show **Preparing print** for state 2/5. This provisional label reflects the seven times the state preceded file transfer in the capture.
+- The companion ESPHome release shows **Inject ink** and **Required after moisturizing** for state 13/0. It also shows available activity progress during recovery, snapshots, cleaning, moisturizing, and ink injection.
+
 - Add **Print-head cleaning (observed)** for operating state 5/1, with command-1102 progress kept separate from normal print progress. Existing state, step and activity-progress entities are reused.
 - Record observed cleaning start/end transitions in the existing maintenance history. A status change ends the observed interval; it does not assert successful cleaning.
 - Display `ink_quantity` channels and their summed job total in **mL**. Four completed jobs match Studio's screenshot totals after rounding: 0.119485 → 0.12 mL, 0.119486 → 0.12 mL, 1.436693 → 1.44 mL, and 0.236693 → 0.24 mL.

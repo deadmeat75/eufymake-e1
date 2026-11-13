@@ -122,7 +122,7 @@ class ModelTests(unittest.TestCase):
         pairs = [(2,1,'Transferring print file'),(2,2,'Waiting for Start'),
             (6,1,'Updating firmware'),(9,0,'Calibration / self-check'),
             (5,10,'Automatic deep cleaning'),(13,1,'Maintenance — inject ink before printing'),
-            (2,5,'Unknown'),(8,2,'Unknown')]
+            (2,5,'Preparing print'),(8,2,'Unknown')]
         for state,step,label in pairs:
             with self.subTest(state=state,step=step):
                 self.model.apply({'commandType':1000,'status':{'state':state,'step':step}},100,TODAY)

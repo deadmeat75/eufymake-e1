@@ -88,7 +88,7 @@ class VerifiedTests(unittest.TestCase):
         self.assertIsNone(data['bed_present'])
         self.assertEqual(self.model.hardware.private_metadata['sn'],'PRIVATE-SERIAL')
         self.assertNotIn('PRIVATE-SERIAL',json.dumps(self.model.hardware.reports))
-        for step in (5,):
+        for step in (255,):
             data=self.apply({'commandType':1000,'status':{'state':2,'step':step}})
             self.assertEqual(data['printer_status'],'Unknown');self.assertEqual(data['printer_state'],2)
         self.assertEqual(self.apply({'commandType':1000,'status':{'state':8,'step':2}})['printer_status'],'Unknown')
