@@ -1,3 +1,7 @@
+# EufyMake E1 Monitor 1.3.3
+
+- Add an optional ESPHome package for the round display, with hardware and setup documentation and firmware-rendered screen examples.
+
 # EufyMake E1 Monitor 1.3.1
 
 - Add **Print-head cleaning (observed)** for operating state 5/1, with command-1102 progress kept separate from normal print progress. Existing state, step and activity-progress entities are reused.

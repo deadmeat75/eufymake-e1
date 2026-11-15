@@ -1,0 +1,25 @@
+# Copy this file into ESPHome Device Builder as eufymake-e1-round.yaml.
+substitutions:
+  printer_prefix: sensor.eufymake_e1_your_printer
+  display_timezone: Etc/UTC
+  # Override individual entity IDs here if needed:
+  # printer_status_entity: sensor.my_printer_status
+
+packages:
+  round_display:
+    url: https://github.com/deadmeat75/eufymake-e1
+    ref: v1.3.3
+    files:
+      - esphome/eufymake-round.yaml
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password

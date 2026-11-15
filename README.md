@@ -1,6 +1,6 @@
 # EufyMake E1 Monitor — Home Assistant integration
 
-**Stable release 1.3.2.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
+**Stable release 1.3.3.** A Home Assistant integration for monitoring your EufyMake E1 printer, with a bundled dashboard and read-only expiration dates.
 
 Earlier releases have been reported working on the maintainer's Home Assistant installation. This update has standalone tests; it has not yet been installed on a live printer. This is an unofficial community project, not affiliated with EufyMake or Home Assistant.
 
@@ -14,6 +14,10 @@ The verified telemetry changes are documented in [TELEMETRY_IMPLEMENTATION.md](T
 - Detect supported cartridge identity changes privately. Show conservative inventory-based usage estimates, with explicit missing-data limits, and unit-unverified printer quantities.
 - Preserve existing entity IDs, configuration, automatic dates, MQTT authentication and dashboards.
 
+
+## New in 1.3.3
+
+The optional round ESPHome display shows printer status, progress, ink levels, waste fill and expiration dates. See the [round display guide](esphome/README.md) for screen examples, the hardware link and setup instructions.
 
 ## New in 1.3.1
 

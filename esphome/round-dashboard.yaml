@@ -1,0 +1,200 @@
+!lambda |-
+  using display::TextAlign;
+  const Color bg(10,21,32), white(238,247,255), muted(169,191,209);
+  const Color track(40,57,71), green(109,229,176), amber(255,198,108);
+  const bool ha = id(ha_api).is_connected_with_state_subscription();
+  const bool connected = ha && id(printer_connection).state == "Connected";
+  const auto &reported = id(printer_status).state;
+  const bool live = connected && !reported.empty() && reported != "unknown" && reported != "unavailable";
+  const bool inject = live && reported == "Maintenance — ink injection required after moisturizing";
+  const std::string status = inject ? "Inject ink" : live ? reported : "Waiting";
+  const bool idle = live && status == "Idle";
+  static std::string previous_status;
+  static bool previous_live = false;
+  static bool dimmed = false;
+  const uint32_t tick = millis();
+  const bool activity = previous_status != status || previous_live != live;
+  if (activity) {
+    previous_status = status;
+    previous_live = live;
+    id(last_activity) = tick;
+  }
+  const bool print_job = status == "Printing" || status == "Paused";
+  const auto whole = [connected](float value) {
+    return connected && value >= 0 && value <= 100 ? int(lroundf(value)) : -1;
+  };
+  const int percent = live && !idle && !inject ?
+      whole(print_job ? id(progress).state : id(activity_progress).state) : -1;
+  const std::array<int, 7> levels{
+    whole(id(cyan).state), whole(id(magenta).state), whole(id(yellow).state),
+    whole(100.0f-id(waste_remaining).state), whole(id(black).state),
+    whole(id(white_ink).state), whole(id(gloss).state)
+  };
+  auto now = id(display_clock).now();
+  char today[11]{};
+  if (now.is_valid()) now.strftime(today, sizeof(today), "%Y-%m-%d");
+  const auto valid_date = [](const std::string &date) {
+    return date.size() == 10 && date[4] == '-' && date[7] == '-' &&
+        date.find_first_not_of("0123456789", 8) == std::string::npos &&
+        date.substr(0, 4).find_first_not_of("0123456789") == std::string::npos &&
+        date.substr(5, 2).find_first_not_of("0123456789") == std::string::npos;
+  };
+  const auto is_expired = [&](float days, const std::string &date) {
+    if (!ha) return false;
+    if (connected && std::isfinite(days)) return days <= 0;
+    return today[0] && valid_date(date) && date <= today;
+  };
+  const std::array<bool, 7> expired{
+    is_expired(id(cyan_expiry_days).state, id(cyan_expiry_date).state),
+    is_expired(id(magenta_expiry_days).state, id(magenta_expiry_date).state),
+    is_expired(id(yellow_expiry_days).state, id(yellow_expiry_date).state),
+    false,
+    is_expired(id(black_expiry_days).state, id(black_expiry_date).state),
+    is_expired(id(white_expiry_days).state, id(white_expiry_date).state),
+    is_expired(id(gloss_expiry_days).state, id(gloss_expiry_date).state)
+  };
+  const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
+  if (activity || (id(selected_metric) >= 0 && tick - id(metric_selected_at) >= 8000))
+    id(selected_metric) = -1;
+  const int selected = id(selected_metric);
+  const std::string* expiry_dates[]{
+    &id(cyan_expiry_date).state, &id(magenta_expiry_date).state, &id(yellow_expiry_date).state,
+    &id(waste_expiry_date).state, &id(black_expiry_date).state, &id(white_expiry_date).state,
+    &id(gloss_expiry_date).state
+  };
+  const std::string expiry_date = ha && selected >= 0 && id(unit_mode) == 3 &&
+      valid_date(*expiry_dates[selected]) ? *expiry_dates[selected] : "";
+  const auto frame = std::make_tuple(levels, percent, minute, id(unit_mode), status, selected,
+                                     it.get_rotation(), expired, expiry_date);
+  static std::remove_const_t<decltype(frame)> previous_frame;
+  if (levels != std::get<0>(previous_frame) || expired != std::get<7>(previous_frame)) id(last_activity) = tick;
+  const bool dim = idle && tick - id(last_activity) >= 600000;
+  if (activity || dim != dimmed) id(backlight).set_level(dim ? 0.30f : 1.0f);
+  dimmed = dim;
+  if (!activity && frame == previous_frame) return;
+  previous_frame = frame;
+
+  it.fill(bg);
+  const Color accent = !live || inject || status.rfind("Check ",0)==0 ||
+      status.rfind("Unknown",0)==0 ? amber : green;
+  const auto point = [](float radius, float angle) {
+    const float radians = angle * 0.01745329252f;
+    return std::make_pair(120.0f+radius*sinf(radians),120.0f-radius*cosf(radians));
+  };
+  const auto arc = [&](float radius, float start, float sweep, int half_width, Color color) {
+    for (float offset=0; offset<=sweep; offset+=0.5f) {
+      const auto [x,y]=point(radius,start+offset);
+      it.filled_circle(lroundf(x),lroundf(y),half_width,color);
+    }
+  };
+  const auto rotated = [&](const char *text, float x, float y, float angle, Color color, bool outline) {
+    auto *face = id(arc_number_font);
+    int width=0;
+    for (const char *c=text; *c; ++c) if (auto *g=face->find_glyph(*c)) width+=g->advance;
+    const float rad = angle * 0.01745329252f;
+    const float cs=cosf(rad), sn=sinf(rad);
+    // Paint the dark outline before the face so adjacent glyphs stay sharp.
+    for (int pass=outline ? 0 : 1; pass<2; ++pass) {
+      int pen=0;
+      for (const char *c=text; *c; ++c) {
+        const auto *g=face->find_glyph(*c);
+        if (!g) continue;
+        for (int row=0; row<g->height; ++row) {
+          for (int col=0; col<g->width; ++col) {
+            const int index=row*g->width+col;
+            const uint8_t packed=progmem_read_byte(g->data+index/2);
+            const int alpha=index%2 ? packed&15 : packed>>4;
+            if (!alpha) continue;
+            const float dx=pen+g->offset_x+col-width/2.0f;
+            const float dy=g->offset_y+row-face->get_baseline()+(outline ? 4 : 0);
+            const int px=lroundf(x+dx*cs-dy*sn), py=lroundf(y+dx*sn+dy*cs);
+            if (pass==0) it.filled_circle(px,py,1,bg);
+            else it.draw_pixel_at(px,py,Color(
+                (bg.r*(15-alpha)+color.r*alpha)/15,
+                (bg.g*(15-alpha)+color.g*alpha)/15,
+                (bg.b*(15-alpha)+color.b*alpha)/15));
+          }
+        }
+        pen+=g->advance;
+      }
+    }
+  };
+  if (percent >= 0) {
+    arc(113,0,360,2,Color(38,59,74));
+    if (percent > 0) arc(113,0,percent*3.6f,2,accent);
+  }
+  const Color waste = levels[3]<0 ? muted : levels[3]>=80 ? Color(251,113,133) :
+      levels[3]>=60 ? Color(251,191,36) : Color(52,211,153);
+  const Color inks[]{Color(87,230,255),Color(255,128,215),Color(249,218,84),
+                     waste,Color(115,122,130),Color(244,247,255),Color(188,171,255)};
+  const char *letters[]{"C","M","Y","","K","W","G"};
+  for (int i=0; i<7; ++i) {
+    const int angle=48+44*i;
+    if (expired[i]) arc(99,angle-16,32,4,Color(251,67,87));
+    arc(99,angle-16,32,3,track);
+    if (levels[i]>0) arc(99,angle-16,32*levels[i]/100.0f,3,inks[i]);
+    const auto [x,y]=point(83,angle);
+    if (i==3) {
+      it.horizontal_line(x-6,y-4,13,waste);
+      it.horizontal_line(x-2,y-6,5,waste);
+      it.line(x-4,y-2,x-3,y+5,waste);
+      it.line(x+4,y-2,x+3,y+5,waste);
+      it.horizontal_line(x-3,y+5,7,waste);
+    } else {
+      it.print(lroundf(x),lroundf(y),id(dial_font),inks[i],TextAlign::CENTER,letters[i]);
+    }
+    if (id(unit_mode)!=3) {
+      const auto [vx,vy]=point(99,angle);
+      const char *suffix = id(unit_mode)==2 ? "" : id(unit_mode)==1 && i!=3 ? " mL" : "%";
+      char value[10]="--";
+      if (levels[i]>=0) snprintf(value,sizeof(value),"%d%s",levels[i],suffix);
+      rotated(value,vx,vy,angle+(i>=2 && i<=4 ? 180 : 0),white,true);
+    }
+  }
+
+  constexpr char brand[]="eufymake E1";
+  constexpr float title_radius = 95.5f;
+  const auto *brand_font=id(arc_number_font);
+  float advance=0;
+  for (char c : std::string_view(brand)) if (auto *g=brand_font->find_glyph(c)) advance+=g->advance;
+  float cursor=-advance/2;
+  for (char c : std::string_view(brand)) {
+    if (const auto *g=brand_font->find_glyph(c)) {
+      const float angle=(cursor+g->advance/2.0f)*57.2957795f/title_radius;
+      const auto [x,y]=point(title_radius,angle);
+      const char letter[]{c,0};
+      rotated(letter,x,y,angle,muted,false);
+      cursor+=g->advance;
+    }
+  }
+  char clock[12]="--:--";
+  if (now.is_valid()) now.strftime(clock,sizeof(clock),"%I:%M %p");
+  it.print(120,59,id(dial_font),muted,TextAlign::CENTER,clock[0]=='0' ? clock+1 : clock);
+  int width, offset, baseline, height;
+  id(status_font).measure(status.c_str(),&width,&offset,&baseline,&height);
+  if (selected >= 0) {
+    const char *names[]{"Cyan","Magenta","Yellow","Waste tank","Black","White","Gloss"};
+    it.print(120,87,id(small_font),inks[selected],TextAlign::CENTER,names[selected]);
+    if (id(unit_mode) == 3) {
+      if (expiry_date.empty()) {
+        it.print(120,126,id(small_font),muted,TextAlign::CENTER,"No expiration date");
+      } else {
+        it.print(120,126,id(expiry_font),expired[selected] ? Color(251,67,87) : white,
+                 TextAlign::CENTER,expiry_date.c_str());
+        it.print(120,161,id(small_font),muted,TextAlign::CENTER,"Expiration date");
+      }
+    } else if (levels[selected] >= 0) {
+      const bool milliliters = id(unit_mode) == 1 && selected != 3;
+      const char *suffix = id(unit_mode) == 2 ? "" : milliliters ? " mL" : "%";
+      it.printf(120,126,milliliters ? id(status_font) : id(number_font),white,
+                TextAlign::CENTER,"%d%s",levels[selected],suffix);
+      it.print(120,161,id(small_font),muted,TextAlign::CENTER,selected==3 ? "Filled" : "Remaining");
+    }
+  } else if (percent>=0) {
+    it.print(120,87,id(small_font),accent,TextAlign::CENTER,status.c_str());
+    it.printf(120,126,id(number_font),white,TextAlign::CENTER,"%d%%",percent);
+    it.print(120,161,id(small_font),muted,TextAlign::CENTER,"Complete");
+  } else {
+    it.print(120,120,width<=125 ? id(status_font) : id(small_font),accent,TextAlign::CENTER,status.c_str());
+    if (inject) it.print(120,149,id(small_font),muted,TextAlign::CENTER,"After moisturizing");
+  }
